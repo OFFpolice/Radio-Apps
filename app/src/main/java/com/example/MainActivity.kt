@@ -1,0 +1,150 @@
+package com.example
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.*
+import com.example.ui.theme.MyApplicationTheme
+
+class MainActivity : ComponentActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        setContent {
+            MyApplicationTheme {
+                // Initialize the ViewModel using the custom factory
+                val viewModel: RadioViewModel by viewModels {
+                    RadioViewModel.Factory(application)
+                }
+
+                val isConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
+                val connectionProgress by viewModel.connectionProgress.collectAsStateWithLifecycle()
+                val connectionStatusText by viewModel.connectionStatusText.collectAsStateWithLifecycle()
+
+                AnimatedContent(
+                    targetState = isConnecting,
+                    transitionSpec = {
+                        fadeIn() togetherWith fadeOut()
+                    },
+                    label = "connection_transition"
+                ) { connecting ->
+                    if (connecting) {
+                        FullScreenLoadingScreen(
+                            progress = connectionProgress / 100f,
+                            statusText = connectionStatusText
+                        )
+                    } else {
+                        MainAppContent(viewModel = viewModel)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MainAppContent(viewModel: RadioViewModel) {
+    val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val stations by viewModel.stations.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
+
+    // Player state management flows
+    val currentUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
+    val currentName by viewModel.playerManager.currentName.collectAsStateWithLifecycle()
+    val currentFavicon by viewModel.playerManager.currentFavicon.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
+
+    // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
+    if (activeTab != AppTab.RADIO) {
+        BackHandler {
+            viewModel.selectTab(AppTab.RADIO)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            AppHeader(
+                searchQuery = searchQuery,
+                onSearchChange = { viewModel.updateSearchQuery(it) },
+                isSearchVisible = activeTab == AppTab.RADIO
+            )
+        },
+        bottomBar = {
+            Column(modifier = Modifier.navigationBarsPadding()) {
+                PlayerBar(
+                    currentName = currentName,
+                    playbackState = playbackState,
+                    onPlayToggle = { viewModel.togglePlay() }
+                )
+                AppBottomNav(
+                    activeTab = activeTab,
+                    onTabSelect = { viewModel.selectTab(it) }
+                )
+            }
+        },
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF121212))
+                .padding(innerPadding)
+        ) {
+            when (activeTab) {
+                AppTab.RADIO -> {
+                    RadioTab(
+                        stations = stations,
+                        favorites = favorites,
+                        activeUrl = currentUrl,
+                        isLoading = isLoading,
+                        hasMore = hasMore,
+                        onStationSelect = { station ->
+                            viewModel.selectStation(station.url_resolved, station.name, station.favicon)
+                        },
+                        onToggleFavorite = { station ->
+                            viewModel.toggleFavorite(station.url_resolved, station.name, station.favicon, station.tags)
+                        },
+                        onLoadMore = {
+                            viewModel.fetchStations(reset = false)
+                        }
+                    )
+                }
+                AppTab.FAVORITES -> {
+                    FavoritesTab(
+                        favorites = favorites,
+                        activeUrl = currentUrl,
+                        onStationSelect = { favStation ->
+                            viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon)
+                        },
+                        onToggleFavorite = { favStation ->
+                            viewModel.toggleFavorite(favStation.urlResolved, favStation.name, favStation.favicon, favStation.tags)
+                        }
+                    )
+                }
+                AppTab.ABOUT -> {
+                    AboutTab()
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Transmission Base/Antenna -->
+    <path
+        android:fillColor="#E91E63"
+        android:pathData="M54,65 L50,84 L58,84 Z M54,54 C56.76,54 59,51.76 59,49 C59,46.24 56.76,44 54,44 C51.24,44 49,46.24 49,49 C49,51.76 51.24,54 54,54 Z" />
+
+    <!-- Wave Ring 1 (Inner Wave Arcs) -->
+    <path
+        android:strokeColor="#F06292"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M43,40.5 C38.5,45.5 38.5,52.5 43,57.5 M65,40.5 C69.5,45.5 69.5,52.5 65,57.5" />
+
+    <!-- Wave Ring 2 (Outer Wave Arcs) -->
+    <path
+        android:strokeColor="#E91E63"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M34,31.5 C26.5,40.5 26.5,57.5 34,66.5 M74,31.5 C81.5,40.5 81.5,57.5 74,66.5" />
+</vector>
