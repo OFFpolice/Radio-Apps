@@ -538,26 +538,37 @@ fun StationCard(
                 .background(Color(0xFF2C2C2C)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Radio,
-                contentDescription = "Standard Fallback Radio Cover Icon",
-                tint = SecondaryPink,
-                modifier = Modifier.size(28.dp)
-            )
-
             if (!faviconUrl.isNullOrBlank()) {
-                val context = LocalContext.current
-                val imageRequest = remember(faviconUrl) {
-                    ImageRequest.Builder(context)
-                        .data(faviconUrl)
-                        .crossfade(true)
-                        .build()
+                var isError by remember(faviconUrl) { mutableStateOf(false) }
+                if (isError) {
+                    Icon(
+                        imageVector = Icons.Default.Radio,
+                        contentDescription = "Standard Fallback Radio Cover Icon",
+                        tint = SecondaryPink,
+                        modifier = Modifier.size(28.dp)
+                    )
+                } else {
+                    val context = LocalContext.current
+                    val imageRequest = remember(faviconUrl) {
+                        ImageRequest.Builder(context)
+                            .data(faviconUrl)
+                            .crossfade(true)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = "Station Favicon Cover",
+                        contentScale = ContentScale.Crop,
+                        onError = { isError = true },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = "Station Favicon Cover",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Radio,
+                    contentDescription = "Standard Fallback Radio Cover Icon",
+                    tint = SecondaryPink,
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
