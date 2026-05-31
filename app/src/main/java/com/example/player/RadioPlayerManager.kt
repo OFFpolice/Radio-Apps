@@ -1,9 +1,11 @@
 package com.example.player
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
-import android.net.Uri
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +19,7 @@ enum class PlaybackState {
 }
 
 class RadioPlayerManager(private val context: Context) {
-    private var mediaPlayer: MediaPlayer? = null
+    private var exoPlayer: ExoPlayer? = null
 
     private val _playbackState = MutableStateFlow(PlaybackState.IDLE)
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -31,43 +33,70 @@ class RadioPlayerManager(private val context: Context) {
     private val _currentFavicon = MutableStateFlow<String?>(null)
     val currentFavicon: StateFlow<String?> = _currentFavicon.asStateFlow()
 
+    // Flag to handle manual pause state from user
+    private var isManuallyPaused = false
+
     init {
         initializePlayer()
     }
 
     private fun initializePlayer() {
-        if (mediaPlayer != null) return
-        mediaPlayer = MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .build()
+        if (exoPlayer != null) return
+
+        // Set low buffering limits so that playback starts immediately!
+        // We set targets for live stream speed optimization.
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                1500, // minBufferMs
+                5000, // maxBufferMs
+                500,  // bufferForPlaybackMs
+                1000  // bufferForPlaybackAfterRebufferMs
             )
-            setOnPreparedListener {
-                start()
-                _playbackState.value = PlaybackState.PLAYING
-            }
-            setOnErrorListener { _, what, extra ->
-                _playbackState.value = PlaybackState.ERROR
-                true
-            }
-            setOnInfoListener { _, what, _ ->
-                when (what) {
-                    MediaPlayer.MEDIA_INFO_BUFFERING_START -> {
-                        _playbackState.value = PlaybackState.BUFFERING
-                        true
+            .build()
+
+        exoPlayer = ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .build()
+            .apply {
+                playWhenReady = true
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        when (state) {
+                            Player.STATE_BUFFERING -> {
+                                if (!isManuallyPaused) {
+                                    _playbackState.value = PlaybackState.BUFFERING
+                                }
+                            }
+                            Player.STATE_READY -> {
+                                if (playWhenReady) {
+                                    _playbackState.value = PlaybackState.PLAYING
+                                } else {
+                                    _playbackState.value = PlaybackState.PAUSED
+                                }
+                            }
+                            Player.STATE_ENDED -> {
+                                _playbackState.value = PlaybackState.IDLE
+                            }
+                            Player.STATE_IDLE -> {
+                                _playbackState.value = PlaybackState.IDLE
+                            }
+                        }
                     }
-                    MediaPlayer.MEDIA_INFO_BUFFERING_END -> {
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        error.printStackTrace()
+                        _playbackState.value = PlaybackState.ERROR
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
                         if (isPlaying) {
                             _playbackState.value = PlaybackState.PLAYING
+                        } else if (_playbackState.value == PlaybackState.PLAYING) {
+                            _playbackState.value = PlaybackState.PAUSED
                         }
-                        true
                     }
-                    else -> false
-                }
+                })
             }
-        }
     }
 
     fun play(url: String, name: String, favicon: String?) {
@@ -75,13 +104,16 @@ class RadioPlayerManager(private val context: Context) {
         _currentName.value = name
         _currentFavicon.value = favicon
         _playbackState.value = PlaybackState.BUFFERING
+        isManuallyPaused = false
 
         try {
             initializePlayer()
-            mediaPlayer?.let { player ->
-                player.reset()
-                player.setDataSource(context, Uri.parse(url))
-                player.prepareAsync()
+            exoPlayer?.apply {
+                stop()
+                clearMediaItems()
+                setMediaItem(MediaItem.fromUri(url))
+                prepare()
+                playWhenReady = true
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -90,12 +122,11 @@ class RadioPlayerManager(private val context: Context) {
     }
 
     fun pause() {
+        isManuallyPaused = true
+        _playbackState.value = PlaybackState.PAUSED
         try {
-            mediaPlayer?.let { player ->
-                if (player.isPlaying) {
-                    player.pause()
-                    _playbackState.value = PlaybackState.PAUSED
-                }
+            exoPlayer?.apply {
+                playWhenReady = false
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -108,15 +139,13 @@ class RadioPlayerManager(private val context: Context) {
             _playbackState.value = PlaybackState.IDLE
             return
         }
+        isManuallyPaused = false
         try {
             initializePlayer()
-            mediaPlayer?.let { player ->
-                // If it's already prepared, we can just start
+            exoPlayer?.apply {
                 if (_playbackState.value == PlaybackState.PAUSED) {
-                    player.start()
-                    _playbackState.value = PlaybackState.PLAYING
+                    playWhenReady = true
                 } else {
-                    // Otherwise, reload/reprepare to handle potential stream timeout/disconnect
                     play(url, _currentName.value ?: "Station", _currentFavicon.value)
                 }
             }
@@ -127,7 +156,8 @@ class RadioPlayerManager(private val context: Context) {
     }
 
     fun togglePlay() {
-        if (_playbackState.value == PlaybackState.PLAYING) {
+        val current = _playbackState.value
+        if (current == PlaybackState.PLAYING || current == PlaybackState.BUFFERING) {
             pause()
         } else {
             resume()
@@ -136,14 +166,11 @@ class RadioPlayerManager(private val context: Context) {
 
     fun release() {
         try {
-            mediaPlayer?.let { player ->
-                player.stop()
-                player.release()
-            }
+            exoPlayer?.release()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            mediaPlayer = null
+            exoPlayer = null
             _playbackState.value = PlaybackState.IDLE
         }
     }

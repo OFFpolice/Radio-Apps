@@ -492,9 +492,11 @@ fun StationCard(
             colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
         )
     } else {
-        Brush.linearGradient(
-            colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
-        )
+        remember {
+            Brush.linearGradient(
+                colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
+            )
+        }
     }
 
     Row(
@@ -521,22 +523,33 @@ fun StationCard(
                 .background(Color(0xFF2C2C2C)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Radio,
-                contentDescription = "Standard Fallback Radio Cover Icon",
-                tint = SecondaryPink,
-                modifier = Modifier.size(28.dp)
-            )
-
             if (!faviconUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(faviconUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Station Favicon Cover",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                var isError by remember { mutableStateOf(false) }
+                if (isError) {
+                    Icon(
+                        imageVector = Icons.Default.Radio,
+                        contentDescription = "Standard Fallback Radio Cover Icon",
+                        tint = SecondaryPink,
+                        modifier = Modifier.size(28.dp)
+                    )
+                } else {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(faviconUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Station Favicon Cover",
+                        contentScale = ContentScale.Crop,
+                        onError = { isError = true },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Radio,
+                    contentDescription = "Standard Fallback Radio Cover Icon",
+                    tint = SecondaryPink,
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
@@ -565,14 +578,16 @@ fun StationCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Badges / Tags row
+            // Badges / Tags row (Optimized using remember for string splitting operations)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val splitTags = tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.take(3)
-                if (!splitTags.isNullOrEmpty()) {
-                    splitTags.forEach { tag ->
+                val parsedTags = remember(tags) {
+                    tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.distinct()?.take(3) ?: emptyList()
+                }
+                if (parsedTags.isNotEmpty()) {
+                    parsedTags.forEach { tag ->
                         TagChip(text = tag, isActive = isActive)
                     }
                 } else {
@@ -897,7 +912,7 @@ fun RadioTab(
                     )
                 }
             } else {
-                items(stations) { station ->
+                items(stations, key = { it.url_resolved }) { station ->
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favorites.any { it.urlResolved == station.url_resolved }
 
@@ -1028,7 +1043,7 @@ fun AboutTab(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(30.dp))
 
         Text(
-            text = "Version: 1.0.0 · Android Mini App",
+            text = "Version: 1.0.0 · Android App",
             color = TextMuted,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
