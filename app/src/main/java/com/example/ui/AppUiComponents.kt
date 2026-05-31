@@ -538,23 +538,28 @@ fun StationCard(
                 .background(Color(0xFF2C2C2C)),
             contentAlignment = Alignment.Center
         ) {
-            val fallbackPainter = rememberVectorPainter(Icons.Default.Radio)
-            val context = LocalContext.current
-            val imageRequest = remember(faviconUrl) {
-                ImageRequest.Builder(context)
-                    .data(faviconUrl?.ifBlank { null })
-                    .crossfade(true)
-                    .build()
-            }
-            AsyncImage(
-                model = imageRequest,
-                contentDescription = "Station Favicon Cover",
-                contentScale = ContentScale.Crop,
-                placeholder = fallbackPainter,
-                error = fallbackPainter,
-                fallback = fallbackPainter,
-                modifier = Modifier.fillMaxSize()
+            Icon(
+                imageVector = Icons.Default.Radio,
+                contentDescription = "Standard Fallback Radio Cover Icon",
+                tint = SecondaryPink,
+                modifier = Modifier.size(28.dp)
             )
+
+            if (!faviconUrl.isNullOrBlank()) {
+                val context = LocalContext.current
+                val imageRequest = remember(faviconUrl) {
+                    ImageRequest.Builder(context)
+                        .data(faviconUrl)
+                        .crossfade(true)
+                        .build()
+                }
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = "Station Favicon Cover",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -924,6 +929,14 @@ fun RadioTab(
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favoriteUrls.contains(station.url_resolved)
 
+                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
+                    val onSelectLambda = remember(station.url_resolved) {
+                        { onStationSelect(station) }
+                    }
+                    val onToggleFavLambda = remember(station.url_resolved) {
+                        { onToggleFavorite(station) }
+                    }
+
                     StationCard(
                         name = station.name,
                         faviconUrl = station.favicon,
@@ -931,8 +944,8 @@ fun RadioTab(
                         urlResolved = station.url_resolved,
                         isActive = isActive,
                         isFavorite = isFav,
-                        onSelect = { onStationSelect(station) },
-                        onToggleFavorite = { onToggleFavorite(station) }
+                        onSelect = onSelectLambda,
+                        onToggleFavorite = onToggleFavLambda
                     )
                 }
 
@@ -1001,6 +1014,14 @@ fun FavoritesTab(
                 items(favorites, key = { it.urlResolved }) { station ->
                     val isActive = activeUrl == station.urlResolved
 
+                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
+                    val onSelectLambda = remember(station.urlResolved) {
+                        { onStationSelect(station) }
+                    }
+                    val onToggleFavLambda = remember(station.urlResolved) {
+                        { onToggleFavorite(station) }
+                    }
+
                     StationCard(
                         name = station.name,
                         faviconUrl = station.favicon,
@@ -1008,8 +1029,8 @@ fun FavoritesTab(
                         urlResolved = station.urlResolved,
                         isActive = isActive,
                         isFavorite = true,
-                        onSelect = { onStationSelect(station) },
-                        onToggleFavorite = { onToggleFavorite(station) }
+                        onSelect = onSelectLambda,
+                        onToggleFavorite = onToggleFavLambda
                     )
                 }
             }
