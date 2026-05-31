@@ -1,7 +1,11 @@
 package com.example.player
 
 import android.content.Context
+import android.content.Intent
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -20,6 +24,11 @@ enum class PlaybackState {
 
 class RadioPlayerManager(private val context: Context) {
     private var exoPlayer: ExoPlayer? = null
+
+    companion object {
+        @JvmStatic
+        var sharedPlayer: ExoPlayer? = null
+    }
 
     private val _playbackState = MutableStateFlow(PlaybackState.IDLE)
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -54,8 +63,14 @@ class RadioPlayerManager(private val context: Context) {
             )
             .build()
 
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+
         exoPlayer = ExoPlayer.Builder(context)
             .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, true)
             .build()
             .apply {
                 playWhenReady = true
@@ -97,6 +112,7 @@ class RadioPlayerManager(private val context: Context) {
                     }
                 })
             }
+        sharedPlayer = exoPlayer
     }
 
     fun play(url: String, name: String, favicon: String?) {
@@ -108,12 +124,35 @@ class RadioPlayerManager(private val context: Context) {
 
         try {
             initializePlayer()
+
+            val metadata = MediaMetadata.Builder()
+                .setTitle(name)
+                .setArtist("Web Radio")
+                .apply {
+                    if (!favicon.isNullOrBlank()) {
+                        setArtworkUri(android.net.Uri.parse(favicon))
+                    }
+                }
+                .build()
+
+            val mediaItem = MediaItem.Builder()
+                .setUri(url)
+                .setMediaMetadata(metadata)
+                .build()
+
             exoPlayer?.apply {
                 stop()
                 clearMediaItems()
-                setMediaItem(MediaItem.fromUri(url))
+                setMediaItem(mediaItem)
                 prepare()
                 playWhenReady = true
+            }
+
+            try {
+                val intent = Intent(context, RadioPlaybackService::class.java)
+                context.startService(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -149,6 +188,12 @@ class RadioPlayerManager(private val context: Context) {
                     play(url, _currentName.value ?: "Station", _currentFavicon.value)
                 }
             }
+            try {
+                val intent = Intent(context, RadioPlaybackService::class.java)
+                context.startService(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             _playbackState.value = PlaybackState.ERROR
@@ -167,10 +212,16 @@ class RadioPlayerManager(private val context: Context) {
     fun release() {
         try {
             exoPlayer?.release()
+            try {
+                context.stopService(Intent(context, RadioPlaybackService::class.java))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
             exoPlayer = null
+            sharedPlayer = null
             _playbackState.value = PlaybackState.IDLE
         }
     }
