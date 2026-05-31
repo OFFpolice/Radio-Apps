@@ -14,6 +14,8 @@ import com.example.player.RadioPlayerManager
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -147,21 +149,23 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             try {
-                val results = repository.searchStations(query, LIMIT, offset)
-                val validResults = results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
+                val processed = withContext(Dispatchers.Default) {
+                    val results = repository.searchStations(query, LIMIT, offset)
+                    val validResults = results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
 
-                if (reset) {
-                    _stations.value = validResults.distinctBy { it.url_resolved }
-                } else {
-                    val currentList = _stations.value
-                    val newUniqueResults = validResults.filter { newStation ->
-                        currentList.none { it.url_resolved == newStation.url_resolved }
+                    if (reset) {
+                        Pair(validResults.distinctBy { it.url_resolved }, validResults.size)
+                    } else {
+                        val currentList = _stations.value
+                        val existingUrls = currentList.map { it.url_resolved }.toSet()
+                        val newUniqueResults = validResults.filter { !existingUrls.contains(it.url_resolved) }
+                        Pair(currentList + newUniqueResults, validResults.size)
                     }
-                    _stations.value = currentList + newUniqueResults
                 }
 
-                offset += validResults.size
-                _hasMore.value = validResults.size == LIMIT
+                _stations.value = processed.first
+                offset += processed.second
+                _hasMore.value = processed.second == LIMIT
             } catch (e: Exception) {
                 e.printStackTrace()
                 _apiError.value = "Ошибка сети при загрузке станций"

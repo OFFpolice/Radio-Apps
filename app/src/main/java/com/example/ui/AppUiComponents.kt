@@ -27,9 +27,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -225,7 +229,6 @@ fun EqualizerAnimation(modifier: Modifier = Modifier, count: Int = 7) {
         val infiniteTransition = rememberInfiniteTransition(label = "equalizer_pulse")
 
         val animTimes = listOf(0.4f, 0.7f, 0.5f, 0.9f, 0.3f, 0.6f, 0.5f)
-        val heightsValues = listOf(14.dp, 22.dp, 18.dp, 26.dp, 12.dp, 20.dp, 16.dp)
 
         for (i in 0 until count) {
             val ratio by infiniteTransition.animateFloat(
@@ -241,13 +244,14 @@ fun EqualizerAnimation(modifier: Modifier = Modifier, count: Int = 7) {
                 label = "eq_bar_$i"
             )
 
-            val currentHeight = heightsValues[i % heightsValues.size]
-            val animatedHeight = 5.dp + (currentHeight - 5.dp) * ratio
-
             Box(
                 modifier = Modifier
                     .width(5.dp)
-                    .height(animatedHeight)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleY = ratio
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                    }
                     .clip(RoundedCornerShape(3.dp))
                     .background(
                         Brush.verticalGradient(
@@ -284,12 +288,14 @@ fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
                 label = "comp_eq_bar_$i"
             )
 
-            val animatedHeight = 3.dp + (12.dp - 3.dp) * ratio
-
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(animatedHeight)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleY = ratio
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                    }
                     .clip(RoundedCornerShape(1.5.dp))
                     .background(PrimaryPink)
             )
@@ -336,6 +342,15 @@ fun AppHeader(
     isSearchVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+
+    // Reactively clear focus and hide keyboard if search is cleared
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isEmpty()) {
+            focusManager.clearFocus()
+        }
+    }
+
     Column(
         modifier = modifier
             .background(CardBg)
@@ -523,35 +538,23 @@ fun StationCard(
                 .background(Color(0xFF2C2C2C)),
             contentAlignment = Alignment.Center
         ) {
-            if (!faviconUrl.isNullOrBlank()) {
-                var isError by remember { mutableStateOf(false) }
-                if (isError) {
-                    Icon(
-                        imageVector = Icons.Default.Radio,
-                        contentDescription = "Standard Fallback Radio Cover Icon",
-                        tint = SecondaryPink,
-                        modifier = Modifier.size(28.dp)
-                    )
-                } else {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(faviconUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Station Favicon Cover",
-                        contentScale = ContentScale.Crop,
-                        onError = { isError = true },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Radio,
-                    contentDescription = "Standard Fallback Radio Cover Icon",
-                    tint = SecondaryPink,
-                    modifier = Modifier.size(28.dp)
-                )
+            val fallbackPainter = rememberVectorPainter(Icons.Default.Radio)
+            val context = LocalContext.current
+            val imageRequest = remember(faviconUrl) {
+                ImageRequest.Builder(context)
+                    .data(faviconUrl?.ifBlank { null })
+                    .crossfade(true)
+                    .build()
             }
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = "Station Favicon Cover",
+                contentScale = ContentScale.Crop,
+                placeholder = fallbackPainter,
+                error = fallbackPainter,
+                fallback = fallbackPainter,
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -878,6 +881,11 @@ fun RadioTab(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    // Precompute a hashed Set of favorite station URLs to enable O(1) lookups during scroll
+    val favoriteUrls = remember(favorites) {
+        favorites.map { it.urlResolved }.toSet()
+    }
+
     // Infinite scroll detection
     val shouldLoadMore = remember {
         derivedStateOf {
@@ -914,7 +922,7 @@ fun RadioTab(
             } else {
                 items(stations, key = { it.url_resolved }) { station ->
                     val isActive = activeUrl == station.url_resolved
-                    val isFav = favorites.any { it.urlResolved == station.url_resolved }
+                    val isFav = favoriteUrls.contains(station.url_resolved)
 
                     StationCard(
                         name = station.name,
@@ -971,6 +979,9 @@ fun FavoritesTab(
     onToggleFavorite: (FavoriteStation) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
     Box(modifier = modifier.fillMaxSize()) {
         if (favorites.isEmpty()) {
             EmptyPlaceholder(
@@ -979,6 +990,7 @@ fun FavoritesTab(
             )
         } else {
             LazyColumn(
+                state = listState,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -1001,6 +1013,21 @@ fun FavoritesTab(
                     )
                 }
             }
+
+            // Scroll to Top FAB Button overlay
+            val isScrollBtnVisible by remember {
+                derivedStateOf { listState.firstVisibleItemIndex > 4 }
+            }
+
+            ScrollToTopButton(
+                visible = isScrollBtnVisible,
+                onClick = {
+                    scope.launch { listState.animateScrollToItem(0) }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 20.dp, end = 20.dp)
+            )
         }
     }
 }

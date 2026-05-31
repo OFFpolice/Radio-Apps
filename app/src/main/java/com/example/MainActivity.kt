@@ -77,6 +77,10 @@ fun MainAppContent(viewModel: RadioViewModel) {
         BackHandler {
             viewModel.selectTab(AppTab.RADIO)
         }
+    } else if (searchQuery.isNotEmpty()) {
+        BackHandler {
+            viewModel.updateSearchQuery("")
+        }
     }
 
     Scaffold(

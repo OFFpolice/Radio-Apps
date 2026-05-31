@@ -44,13 +44,13 @@ class RadioPlayerManager(private val context: Context) {
         if (exoPlayer != null) return
 
         // Set low buffering limits so that playback starts immediately!
-        // We set targets for live stream speed optimization.
+        // We set targets for live stream speed optimization with 0.25s start latency.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                1500, // minBufferMs
-                5000, // maxBufferMs
-                500,  // bufferForPlaybackMs
-                1000  // bufferForPlaybackAfterRebufferMs
+                1000, // minBufferMs
+                3000, // maxBufferMs
+                250,  // bufferForPlaybackMs
+                500   // bufferForPlaybackAfterRebufferMs
             )
             .build()
 
