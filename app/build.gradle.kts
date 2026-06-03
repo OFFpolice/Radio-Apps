@@ -1,5 +1,3 @@
-import java.io.File as JFile
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -9,7 +7,7 @@ plugins {
 }
 
 android {
-  namespace = "com.offpolice"
+  namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
@@ -58,54 +56,6 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
-}
-
-val projectDirFile = layout.projectDirectory.asFile
-val buildDirFile = layout.buildDirectory.get().asFile
-val rootDirFile = layout.projectDirectory.asFile.parentFile
-
-tasks.register("renameApkToWebRadioBot") {
-  val bDir = buildDirFile
-  val rDir = rootDirFile
-
-  doLast {
-    val debugApk = JFile(bDir, "outputs/apk/debug/app-debug.apk")
-    val destDebugApk = JFile(bDir, "outputs/apk/debug/WebRadioBot.apk")
-    if (debugApk.exists()) {
-      debugApk.copyTo(destDebugApk, overwrite = true)
-      println("Successfully renamed debug APK to WebRadioBot.apk")
-    }
-    val releaseApk = JFile(bDir, "outputs/apk/release/app-release-unsigned.apk")
-    val destReleaseApk = JFile(bDir, "outputs/apk/release/WebRadioBot.apk")
-    if (releaseApk.exists()) {
-      releaseApk.copyTo(destReleaseApk, overwrite = true)
-      println("Successfully renamed release APK to WebRadioBot.apk")
-    }
-    val releaseSignedApk = JFile(bDir, "outputs/apk/release/app-release.apk")
-    if (releaseSignedApk.exists()) {
-      releaseSignedApk.copyTo(destReleaseApk, overwrite = true)
-      println("Successfully renamed signed release APK to WebRadioBot.apk")
-    }
-
-    val buildOutputsDir = JFile(rDir, ".build-outputs")
-    if (buildOutputsDir.exists()) {
-      val destFile = JFile(buildOutputsDir, "WebRadioBot.apk")
-      if (debugApk.exists()) {
-        debugApk.copyTo(destFile, overwrite = true)
-        debugApk.copyTo(JFile(buildOutputsDir, "app-debug.apk"), overwrite = true)
-      } else if (releaseSignedApk.exists()) {
-        releaseSignedApk.copyTo(destFile, overwrite = true)
-      } else if (releaseApk.exists()) {
-        releaseApk.copyTo(destFile, overwrite = true)
-      }
-    }
-  }
-}
-
-tasks.configureEach {
-  if (name.startsWith("assemble")) {
-    finalizedBy("renameApkToWebRadioBot")
-  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
