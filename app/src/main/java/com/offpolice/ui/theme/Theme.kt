@@ -22,7 +22,7 @@ private val LightColorScheme = lightColorScheme(
     primary = PrimaryPink,
     secondary = SecondaryPink,
     tertiary = LightPink,
-    background = DarkBg,
+    background = DarkBg, // Keep dark styling for the immersive media player look
     surface = CardBg,
     onPrimary = TextPrimary,
     onSecondary = TextPrimary,
@@ -33,7 +33,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = true, // We force the premium dark look for player immersion
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

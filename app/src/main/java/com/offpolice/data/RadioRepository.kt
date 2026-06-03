@@ -28,6 +28,7 @@ class RadioRepository(context: Context) {
         .build()
         .create(RadioBrowserApi::class.java)
 
+    // Current resolved server for API operations
     private var resolvedServer: String = "https://de1.api.radio-browser.info"
 
     suspend fun resolveActiveServer() {
@@ -39,6 +40,7 @@ class RadioRepository(context: Context) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            // Fallbacks automatically to "https://de1.api.radio-browser.info"
         }
     }
 
@@ -52,6 +54,7 @@ class RadioRepository(context: Context) {
         )
     }
 
+    // Favorites Operations
     fun getFavoritesFlow(): Flow<List<FavoriteStation>> = favoriteStationDao.getAllFavorites()
 
     suspend fun addFavorite(urlResolved: String, name: String, tags: String?, favicon: String?) {

@@ -63,7 +63,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private val _apiError = MutableStateFlow<String?>(null)
     val apiError: StateFlow<String?> = _apiError.asStateFlow()
 
-    private val _connectionProgress = MutableStateFlow(10)
+    private val _connectionProgress = MutableStateFlow(10) // 0-100%
     val connectionProgress: StateFlow<Int> = _connectionProgress.asStateFlow()
 
     private val _connectionStatusText = MutableStateFlow("Инициализация...")
@@ -77,6 +77,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private var searchJob: Job? = null
 
     init {
+        // Run setup connection
         viewModelScope.launch {
             _isConnecting.value = true
             _connectionProgress.value = 15
@@ -91,6 +92,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             _connectionProgress.value = 80
             _connectionStatusText.value = "Получение списка станций..."
 
+            // Pre-load initial stations list
             fetchStations(reset = true, query = "")
 
             _connectionProgress.value = 100
@@ -98,6 +100,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             delay(300)
             _isConnecting.value = false
 
+            // Restore last played station
             val lastUrl = sharedPrefs.getString("last_url", null)
             val lastName = sharedPrefs.getString("last_name", null)
             val lastFavicon = sharedPrefs.getString("last_favicon", null)
@@ -111,6 +114,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             }
         }
 
+        // Setup debounced search query emission
         viewModelScope.launch {
             _searchQuery
                 .debounce(500)
@@ -174,6 +178,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     fun selectStation(url: String, name: String, favicon: String?) {
         playerManager.play(url, name, favicon)
 
+        // Save last played
         sharedPrefs.edit()
             .putString("last_url", url)
             .putString("last_name", name)
@@ -201,6 +206,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         playerManager.release()
     }
 
+    // Custom Factory for the ViewModel
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(RadioViewModel::class.java)) {
