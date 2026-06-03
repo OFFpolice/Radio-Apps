@@ -2,11 +2,10 @@ package com.offpolice.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Premium Dark WebRadioBot theme palette
 val DarkBg = Color(0xFF121212)
 val CardBg = Color(0xFF1E1E1E)
 val SearchBg = Color(0xFF2C2C2C)
-val ActiveCardBg = Color(0x26C2185B) // 15% opacity of C2185B
+val ActiveCardBg = Color(0x26C2185B)
 
 val PrimaryPink = Color(0xFFE91E63)
 val SecondaryPink = Color(0xFFC2185B)

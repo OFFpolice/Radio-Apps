@@ -28,7 +28,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                // Initialize the ViewModel using the custom factory
                 val viewModel: RadioViewModel by viewModels {
                     RadioViewModel.Factory(application)
                 }
@@ -67,13 +66,11 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
 
-    // Player state management flows
     val currentUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
     val currentName by viewModel.playerManager.currentName.collectAsStateWithLifecycle()
     val currentFavicon by viewModel.playerManager.currentFavicon.collectAsStateWithLifecycle()
     val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
 
-    // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
     if (activeTab != AppTab.RADIO) {
         BackHandler {
             viewModel.selectTab(AppTab.RADIO)
