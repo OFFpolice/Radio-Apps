@@ -438,7 +438,7 @@ fun BasicTextField2_Placeholder(
             value = value,
             onValueChange = onValueChange,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 16.sp
             ),
             singleLine = true,
@@ -473,7 +473,7 @@ fun SectionHeader(
         Text(
             text = title.uppercase(),
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFFE0E0E0),
+            color = TextSecondary,
             fontSize = 14.sp,
             letterSpacing = 0.5.sp
         )
@@ -666,13 +666,14 @@ fun PlayerBar(
     onPlayToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val borderColor = TextSecondary.copy(alpha = 0.12f)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(CardBg)
             .drawBehind {
                 drawLine(
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = borderColor,
                     start = Offset(0f, 0f),
                     end = Offset(size.width, 0f),
                     strokeWidth = 1.dp.toPx()
@@ -1079,7 +1080,7 @@ fun <T> SettingsOptionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -1246,7 +1247,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(CardBg)
-                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                    .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -1279,7 +1280,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -1333,7 +1334,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Dev API URL element

@@ -30,9 +30,9 @@ val LightThemeColors = AppThemeColors(
     cardBg = Color(0xFFFFFFFF),
     searchBg = Color(0xFFE2E2E5),
     activeCardBg = Color(0x1CC2185B), // Elegant soft pink tint
-    textPrimary = Color(0xFF1C1C1E),
-    textSecondary = Color(0xFF5A5A60),
-    textMuted = Color(0xFF8E8E93)
+    textPrimary = Color(0xFF000000),
+    textSecondary = Color(0xFF000000),
+    textMuted = Color(0xFF000000)
 )
 
 val LocalAppThemeColors = staticCompositionLocalOf { DarkThemeColors }
