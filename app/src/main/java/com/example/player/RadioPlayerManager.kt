@@ -1,7 +1,6 @@
 package com.example.player
 
 import android.content.Context
-import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -147,13 +146,6 @@ class RadioPlayerManager(private val context: Context) {
                 prepare()
                 playWhenReady = true
             }
-
-            try {
-                val intent = Intent(context, RadioPlaybackService::class.java)
-                context.startService(intent)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         } catch (e: Exception) {
             e.printStackTrace()
             _playbackState.value = PlaybackState.ERROR
@@ -188,12 +180,6 @@ class RadioPlayerManager(private val context: Context) {
                     play(url, _currentName.value ?: "Station", _currentFavicon.value)
                 }
             }
-            try {
-                val intent = Intent(context, RadioPlaybackService::class.java)
-                context.startService(intent)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         } catch (e: Exception) {
             e.printStackTrace()
             _playbackState.value = PlaybackState.ERROR
@@ -212,11 +198,6 @@ class RadioPlayerManager(private val context: Context) {
     fun release() {
         try {
             exoPlayer?.release()
-            try {
-                context.stopService(Intent(context, RadioPlaybackService::class.java))
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
