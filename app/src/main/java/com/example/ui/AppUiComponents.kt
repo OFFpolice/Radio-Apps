@@ -355,6 +355,7 @@ fun AppHeader(
     Column(
         modifier = modifier
             .background(CardBg)
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Box(
@@ -797,6 +798,7 @@ fun AppBottomNav(
     NavigationBar(
         containerColor = CardBg,
         contentColor = TextSecondary,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier.testTag("bottom_nav")
     ) {
         NavigationBarItem(

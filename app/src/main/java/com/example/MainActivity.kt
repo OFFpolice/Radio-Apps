@@ -1,6 +1,7 @@
 package com.example
 
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -19,11 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.*
-import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         setContent {
@@ -107,7 +109,11 @@ fun MainAppContent(viewModel: RadioViewModel) {
             )
         },
         bottomBar = {
-            Column(modifier = Modifier.navigationBarsPadding()) {
+            Column(
+                modifier = Modifier
+                    .background(CardBg)
+                    .navigationBarsPadding()
+            ) {
                 PlayerBar(
                     currentName = currentName,
                     playbackState = playbackState,
@@ -121,7 +127,6 @@ fun MainAppContent(viewModel: RadioViewModel) {
         },
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
     ) { innerPadding ->
         Box(
             modifier = Modifier

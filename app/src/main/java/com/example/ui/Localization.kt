@@ -28,6 +28,7 @@ enum class ConnectionState {
 object Loc {
     private val en = mapOf(
         "app_subtitle" to "Thousands of stations from around the world",
+        "loading_tagline" to "Thousands of stations from around the world",
         "search_placeholder" to "Search stations...",
         "all_stations" to "All Radio Stations",
         "nothing_found" to "Nothing found",
@@ -68,6 +69,7 @@ object Loc {
 
     private val ru = mapOf(
         "app_subtitle" to "Тысячи станций со всего мира",
+        "loading_tagline" to "Тысячи станций со всего мира",
         "search_placeholder" to "Поиск станций...",
         "all_stations" to "Все радиостанции",
         "nothing_found" to "Ничего не найдено",
@@ -108,6 +110,7 @@ object Loc {
 
     private val uk = mapOf(
         "app_subtitle" to "Тисячі станцій з усього світу",
+        "loading_tagline" to "Тисячі станцій з усього світу",
         "search_placeholder" to "Пошук станцій...",
         "all_stations" to "Всі радіостанції",
         "nothing_found" to "Нічого не знайдено",
