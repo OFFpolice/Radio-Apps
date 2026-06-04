@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 enum class AppTab {
     RADIO,
     FAVORITES,
-    ABOUT
+    SETTINGS
 }
 
 @OptIn(FlowPreview::class)
@@ -37,6 +37,30 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     val playerManager = RadioPlayerManager(application)
 
     private val sharedPrefs = application.getSharedPreferences("webradio_prefs", Context.MODE_PRIVATE)
+
+    private val _themeSetting = MutableStateFlow(
+        AppThemeSetting.valueOf(
+            sharedPrefs.getString("theme_setting", AppThemeSetting.SYSTEM.name) ?: AppThemeSetting.SYSTEM.name
+        )
+    )
+    val themeSetting: StateFlow<AppThemeSetting> = _themeSetting.asStateFlow()
+
+    private val _languageSetting = MutableStateFlow(
+        AppLanguageSetting.valueOf(
+            sharedPrefs.getString("language_setting", AppLanguageSetting.AUTO.name) ?: AppLanguageSetting.AUTO.name
+        )
+    )
+    val languageSetting: StateFlow<AppLanguageSetting> = _languageSetting.asStateFlow()
+
+    fun setThemeSetting(theme: AppThemeSetting) {
+        _themeSetting.value = theme
+        sharedPrefs.edit().putString("theme_setting", theme.name).apply()
+    }
+
+    fun setLanguageSetting(lang: AppLanguageSetting) {
+        _languageSetting.value = lang
+        sharedPrefs.edit().putString("language_setting", lang.name).apply()
+    }
 
     private val _activeTab = MutableStateFlow(AppTab.RADIO)
     val activeTab: StateFlow<AppTab> = _activeTab.asStateFlow()
@@ -66,8 +90,8 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private val _connectionProgress = MutableStateFlow(10) // 0-100%
     val connectionProgress: StateFlow<Int> = _connectionProgress.asStateFlow()
 
-    private val _connectionStatusText = MutableStateFlow("Инициализация...")
-    val connectionStatusText: StateFlow<String> = _connectionStatusText.asStateFlow()
+    private val _connectionState = MutableStateFlow(ConnectionState.INITIALIZING)
+    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
     private val _isConnecting = MutableStateFlow(true)
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
@@ -81,22 +105,22 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             _isConnecting.value = true
             _connectionProgress.value = 15
-            _connectionStatusText.value = "Загрузка ресурсов..."
+            _connectionState.value = ConnectionState.LOADING_RESOURCES
             delay(200)
 
             _connectionProgress.value = 45
-            _connectionStatusText.value = "Подключение к серверу..."
+            _connectionState.value = ConnectionState.CONNECTING_SERVER
             delay(200)
 
             repository.resolveActiveServer()
             _connectionProgress.value = 80
-            _connectionStatusText.value = "Получение списка станций..."
+            _connectionState.value = ConnectionState.GETTING_STATIONS
 
             // Pre-load initial stations list
             fetchStations(reset = true, query = "")
 
             _connectionProgress.value = 100
-            _connectionStatusText.value = "Готово!"
+            _connectionState.value = ConnectionState.READY
             delay(300)
             _isConnecting.value = false
 

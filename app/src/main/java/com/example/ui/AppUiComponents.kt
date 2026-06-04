@@ -45,6 +45,7 @@ import com.example.data.ApiStation
 import com.example.data.FavoriteStation
 import com.example.player.PlaybackState
 import com.example.ui.theme.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 // Full screen loaders representing loadingScreen element from user code
@@ -57,7 +58,7 @@ fun FullScreenLoadingScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0E0E0E)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -107,7 +108,7 @@ fun FullScreenLoadingScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Тысячи станций со всего мира",
+                text = stringLoc("loading_tagline"),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = TextSecondary,
@@ -126,7 +127,7 @@ fun FullScreenLoadingScreen(
                     .width(200.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(Color(0xFF2A2A2A))
+                    .background(SearchBg)
             ) {
                 Box(
                     modifier = Modifier
@@ -393,7 +394,7 @@ fun AppHeader(
                 BasicTextField2_Placeholder(
                     value = searchQuery,
                     onValueChange = onSearchChange,
-                    placeholderText = "Поиск станций...",
+                    placeholderText = stringLoc("search_placeholder"),
                     modifier = Modifier.weight(1f)
                 )
 
@@ -581,8 +582,8 @@ fun StationCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = name.trim().ifEmpty { "Без названия" },
-                    color = Color.White,
+                    text = name.trim().ifEmpty { stringLoc("no_title") },
+                    color = TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     maxLines = 1,
@@ -707,7 +708,7 @@ fun PlayerBar(
 
         // Running track name (marquee!)
         Text(
-            text = currentName ?: "Выберите станцию",
+            text = currentName ?: stringLoc("select_station"),
             modifier = Modifier
                 .weight(1f)
                 .basicMarquee()
@@ -715,7 +716,7 @@ fun PlayerBar(
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
-                color = Color.White
+                color = TextPrimary
             ),
             maxLines = 1
         )
@@ -735,11 +736,11 @@ fun PlayerBar(
             }
 
             val statusText = when (playbackState) {
-                PlaybackState.PLAYING -> "Играет"
-                PlaybackState.BUFFERING -> "Буфер..."
-                PlaybackState.PAUSED -> "Пауза"
-                PlaybackState.ERROR -> "Ошибка"
-                PlaybackState.IDLE -> "Ожидание"
+                PlaybackState.PLAYING -> stringLoc("playing")
+                PlaybackState.BUFFERING -> stringLoc("buffering")
+                PlaybackState.PAUSED -> stringLoc("paused")
+                PlaybackState.ERROR -> stringLoc("error")
+                PlaybackState.IDLE -> stringLoc("idle")
             }
 
             val statusIcon = when (playbackState) {
@@ -794,7 +795,7 @@ fun AppBottomNav(
     modifier: Modifier = Modifier
 ) {
     NavigationBar(
-        containerColor = Color(0xFF1A1A1A),
+        containerColor = CardBg,
         contentColor = TextSecondary,
         modifier = modifier.testTag("bottom_nav")
     ) {
@@ -807,7 +808,7 @@ fun AppBottomNav(
                     contentDescription = "Radio Tab icon"
                 )
             },
-            label = { Text("Радио") },
+            label = { Text(stringLoc("tab_radio")) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
@@ -825,7 +826,7 @@ fun AppBottomNav(
                     contentDescription = "Favorites Tab icon"
                 )
             },
-            label = { Text("Избранное") },
+            label = { Text(stringLoc("tab_favorites")) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
@@ -835,21 +836,21 @@ fun AppBottomNav(
         )
 
         NavigationBarItem(
-            selected = activeTab == AppTab.ABOUT,
-            onClick = { onTabSelect(AppTab.ABOUT) },
+            selected = activeTab == AppTab.SETTINGS,
+            onClick = { onTabSelect(AppTab.SETTINGS) },
             icon = {
                 Icon(
-                    imageVector = if (activeTab == AppTab.ABOUT) Icons.Filled.Info else Icons.Outlined.Info,
-                    contentDescription = "About Tab icon"
+                    imageVector = if (activeTab == AppTab.SETTINGS) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Settings Tab icon"
                 )
             },
-            label = { Text("О нас") },
+            label = { Text(stringLoc("tab_settings")) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
                 indicatorColor = PrimaryPink.copy(alpha = 0.1f)
             ),
-            modifier = Modifier.testTag("nav_item_about")
+            modifier = Modifier.testTag("nav_item_settings")
         )
     }
 }
@@ -925,13 +926,13 @@ fun RadioTab(
             modifier = Modifier.fillMaxSize()
         ) {
             item {
-                SectionHeader(title = "Все радиостанции", icon = Icons.Default.Radio)
+                SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
             }
 
             if (stations.isEmpty() && !isLoading) {
                 item {
                     EmptyPlaceholder(
-                        message = "Ничего не найдено",
+                        message = stringLoc("nothing_found"),
                         icon = Icons.Default.SearchOff
                     )
                 }
@@ -1009,7 +1010,7 @@ fun FavoritesTab(
     Box(modifier = modifier.fillMaxSize()) {
         if (favorites.isEmpty()) {
             EmptyPlaceholder(
-                message = "Нет избранных станций",
+                message = stringLoc("empty_favorites"),
                 icon = Icons.Outlined.FavoriteBorder
             )
         } else {
@@ -1019,7 +1020,7 @@ fun FavoritesTab(
                 modifier = Modifier.fillMaxSize()
             ) {
                 item {
-                    SectionHeader(title = "Избранное", icon = Icons.Default.Favorite)
+                    SectionHeader(title = stringLoc("tab_favorites"), icon = Icons.Default.Favorite)
                 }
 
                 items(favorites, key = { it.urlResolved }) { station ->
@@ -1065,47 +1066,296 @@ fun FavoritesTab(
 }
 
 @Composable
-fun AboutTab(modifier: Modifier = Modifier) {
+fun <T> SettingsOptionCard(
+    title: String,
+    options: List<Triple<T, String, String?>>,
+    selected: T,
+    onSelect: (T) -> Unit
+) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+            .padding(16.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Radio,
-            contentDescription = "Audio Wave visualizer indicator",
-            tint = SecondaryPink,
-            modifier = Modifier
-                .size(72.dp)
-                .padding(bottom = 16.dp)
-        )
-
         Text(
-            text = "WebRadioBot",
-            fontSize = 24.sp,
+            text = title,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = PrimaryPink,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        options.forEach { (option, label, subtitle) ->
+            val isSelected = option == selected
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) PrimaryPink.copy(alpha = 0.12f) else Color.Transparent)
+                    .clickable { onSelect(option) }
+                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = isSelected,
+                    onClick = { onSelect(option) },
+                    colors = RadioButtonDefaults.colors(
+                        selectedColor = PrimaryPink,
+                        unselectedColor = TextSecondary
+                    )
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = TextPrimary
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
-        Text(
-            text = "Слушайте тысячи радиостанции со всего мира. Добавляйте любимые в избранное для быстрого доступа.",
-            color = TextSecondary,
-            fontSize = 15.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp
+@Composable
+fun SocialLinkRow(
+    title: String,
+    handle: String,
+    icon: ImageVector,
+    url: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(PrimaryPink.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PrimaryPink,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = handle,
+                fontSize = 12.sp,
+                color = TextSecondary
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.Launch,
+            contentDescription = "Open Link",
+            tint = TextMuted,
+            modifier = Modifier.size(16.dp)
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(30.dp))
+@Composable
+fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
+    val themeSetting by viewModel.themeSetting.collectAsStateWithLifecycle()
+    val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
-        Text(
-            text = "Version: 1.0.0 · Android App",
-            color = TextMuted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
+    val languageOptions = remember {
+        listOf(
+            Triple(AppLanguageSetting.AUTO, "language_auto", "language_default_hint"),
+            Triple(AppLanguageSetting.EN, "language_en", null),
+            Triple(AppLanguageSetting.RU, "language_ru", null),
+            Triple(AppLanguageSetting.UK, "language_uk", null)
         )
+    }
+
+    val themeOptions = remember {
+        listOf(
+            Triple(AppThemeSetting.SYSTEM, "theme_system", "theme_default_hint"),
+            Triple(AppThemeSetting.LIGHT, "theme_light", null),
+            Triple(AppThemeSetting.DARK, "theme_dark", null)
+        )
+    }
+
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier.fillMaxSize()
+    ) {
+        item {
+            SectionHeader(title = stringLoc("tab_settings"), icon = Icons.Default.Settings)
+        }
+
+        // Language settings
+        item {
+            SettingsOptionCard(
+                title = stringLoc("setting_language"),
+                options = languageOptions.map { (opt, labelKey, hintKey) ->
+                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
+                },
+                selected = languageSetting,
+                onSelect = { viewModel.setLanguageSetting(it) }
+            )
+        }
+
+        // Theme settings
+        item {
+            SettingsOptionCard(
+                title = stringLoc("setting_theme"),
+                options = themeOptions.map { (opt, labelKey, hintKey) ->
+                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
+                },
+                selected = themeSetting,
+                onSelect = { viewModel.setThemeSetting(it) }
+            )
+        }
+
+        // About section
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardBg)
+                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Large About Icon Header
+                Icon(
+                    imageVector = Icons.Default.Radio,
+                    contentDescription = null,
+                    tint = SecondaryPink,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = "WebRadioBot",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringLoc("about_text"),
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Follow Author title
+                Text(
+                    text = stringLoc("socials_heading").uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryPink,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+
+                // Social platforms list
+                SocialLinkRow(
+                    title = "Telegram",
+                    handle = "@OFFpolice",
+                    icon = Icons.Default.Send,
+                    url = "https://t.me/OFFpolice"
+                ) {
+                    uriHandler.openUri("https://t.me/OFFpolice")
+                }
+
+                SocialLinkRow(
+                    title = "X (Twitter)",
+                    handle = "@OFFpolice2077",
+                    icon = Icons.Default.Public,
+                    url = "https://x.com/OFFpolice2077"
+                ) {
+                    uriHandler.openUri("https://x.com/OFFpolice2077")
+                }
+
+                SocialLinkRow(
+                    title = "Instagram",
+                    handle = "@offpolice2077",
+                    icon = Icons.Default.PhotoCamera,
+                    url = "https://www.instagram.com/offpolice2077"
+                ) {
+                    uriHandler.openUri("https://www.instagram.com/offpolice2077")
+                }
+
+                SocialLinkRow(
+                    title = "WebRadioBot in Telegram",
+                    handle = "t.me/Web_radio_bot/app",
+                    icon = Icons.Default.PlayCircle,
+                    url = "https://t.me/Web_radio_bot/app"
+                ) {
+                    uriHandler.openUri("https://t.me/Web_radio_bot/app")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Dev API URL element
+                Text(
+                    text = stringLoc("link_dev_api"),
+                    color = PrimaryPink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { uriHandler.openUri("https://api.radio-browser.info/") }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringLoc("version_info"),
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
     }
 }

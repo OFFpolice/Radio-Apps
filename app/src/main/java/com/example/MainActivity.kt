@@ -27,30 +27,44 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MyApplicationTheme {
-                // Initialize the ViewModel using the custom factory
-                val viewModel: RadioViewModel by viewModels {
-                    RadioViewModel.Factory(application)
-                }
+            // Initialize the ViewModel using the custom factory
+            val viewModel: RadioViewModel by viewModels {
+                RadioViewModel.Factory(application)
+            }
 
-                val isConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
-                val connectionProgress by viewModel.connectionProgress.collectAsStateWithLifecycle()
-                val connectionStatusText by viewModel.connectionStatusText.collectAsStateWithLifecycle()
+            val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
+            val themeSetting by viewModel.themeSetting.collectAsStateWithLifecycle()
 
-                AnimatedContent(
-                    targetState = isConnecting,
-                    transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
-                    },
-                    label = "connection_transition"
-                ) { connecting ->
-                    if (connecting) {
-                        FullScreenLoadingScreen(
-                            progress = connectionProgress / 100f,
-                            statusText = connectionStatusText
-                        )
-                    } else {
-                        MainAppContent(viewModel = viewModel)
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalLanguageSetting provides languageSetting
+            ) {
+                MyApplicationTheme(themeSetting = themeSetting) {
+                    val isConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
+                    val connectionProgress by viewModel.connectionProgress.collectAsStateWithLifecycle()
+                    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
+
+                    AnimatedContent(
+                        targetState = isConnecting,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        },
+                        label = "connection_transition"
+                    ) { connecting ->
+                        if (connecting) {
+                            val statusText = when (connectionState) {
+                                ConnectionState.INITIALIZING -> stringLoc("state_init")
+                                ConnectionState.LOADING_RESOURCES -> stringLoc("state_resources")
+                                ConnectionState.CONNECTING_SERVER -> stringLoc("state_connecting")
+                                ConnectionState.GETTING_STATIONS -> stringLoc("state_stations")
+                                ConnectionState.READY -> stringLoc("state_ready")
+                            }
+                            FullScreenLoadingScreen(
+                                progress = connectionProgress / 100f,
+                                statusText = statusText
+                            )
+                        } else {
+                            MainAppContent(viewModel = viewModel)
+                        }
                     }
                 }
             }
@@ -112,7 +126,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF121212))
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             when (activeTab) {
@@ -146,8 +160,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         }
                     )
                 }
-                AppTab.ABOUT -> {
-                    AboutTab()
+                AppTab.SETTINGS -> {
+                    SettingsTab(viewModel = viewModel)
                 }
             }
         }
