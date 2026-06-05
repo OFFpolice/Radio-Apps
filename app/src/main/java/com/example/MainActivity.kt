@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.ComponentActivity
@@ -24,9 +25,22 @@ import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: Context?) {
+        val nextBase = if (newBase != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            newBase.createAttributionContext("webradio")
+        } else {
+            newBase
+        }
+        super.attachBaseContext(nextBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+        }
 
         setContent {
             // Initialize the ViewModel using the custom factory

@@ -1,6 +1,7 @@
 package com.example.player
 
 import android.content.Context
+import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -22,6 +23,11 @@ enum class PlaybackState {
 }
 
 class RadioPlayerManager(private val context: Context) {
+    private val contextToUse = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        context.createAttributionContext("webradio")
+    } else {
+        context
+    }
     private var exoPlayer: ExoPlayer? = null
 
     companion object {
@@ -67,7 +73,7 @@ class RadioPlayerManager(private val context: Context) {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
 
-        exoPlayer = ExoPlayer.Builder(context)
+        exoPlayer = ExoPlayer.Builder(contextToUse)
             .setLoadControl(loadControl)
             .setAudioAttributes(audioAttributes, true)
             .build()
@@ -112,6 +118,12 @@ class RadioPlayerManager(private val context: Context) {
                 })
             }
         sharedPlayer = exoPlayer
+        try {
+            val intent = Intent(context, PlaybackService::class.java)
+            context.startService(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun play(url: String, name: String, favicon: String?) {
@@ -196,6 +208,12 @@ class RadioPlayerManager(private val context: Context) {
     }
 
     fun release() {
+        try {
+            val intent = Intent(context, PlaybackService::class.java)
+            context.stopService(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         try {
             exoPlayer?.release()
         } catch (e: Exception) {
