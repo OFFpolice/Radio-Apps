@@ -118,12 +118,6 @@ class RadioPlayerManager(private val context: Context) {
                 })
             }
         sharedPlayer = exoPlayer
-        try {
-            val intent = Intent(context, PlaybackService::class.java)
-            context.startService(intent)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     fun play(url: String, name: String, favicon: String?) {
@@ -208,12 +202,6 @@ class RadioPlayerManager(private val context: Context) {
     }
 
     fun release() {
-        try {
-            val intent = Intent(context, PlaybackService::class.java)
-            context.stopService(intent)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
         try {
             exoPlayer?.release()
         } catch (e: Exception) {
