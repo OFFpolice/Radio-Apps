@@ -815,6 +815,8 @@ fun AppBottomNav(
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
                 indicatorColor = PrimaryPink.copy(alpha = 0.1f)
             ),
             modifier = Modifier.testTag("nav_item_radio")
@@ -833,6 +835,8 @@ fun AppBottomNav(
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
                 indicatorColor = PrimaryPink.copy(alpha = 0.1f)
             ),
             modifier = Modifier.testTag("nav_item_favorites")
@@ -851,6 +855,8 @@ fun AppBottomNav(
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
                 indicatorColor = PrimaryPink.copy(alpha = 0.1f)
             ),
             modifier = Modifier.testTag("nav_item_settings")
