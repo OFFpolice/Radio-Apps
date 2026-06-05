@@ -1306,7 +1306,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 SocialLinkRow(
                     title = "Telegram",
                     handle = "@OFFpolice",
-                    icon = Icons.Default.Send,
+                    icon = SocialIcons.Telegram,
                     url = "https://t.me/OFFpolice"
                 ) {
                     uriHandler.openUri("https://t.me/OFFpolice")
@@ -1315,7 +1315,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 SocialLinkRow(
                     title = "X (Twitter)",
                     handle = "@OFFpolice2077",
-                    icon = Icons.Default.Public,
+                    icon = SocialIcons.X,
                     url = "https://x.com/OFFpolice2077"
                 ) {
                     uriHandler.openUri("https://x.com/OFFpolice2077")
@@ -1324,16 +1324,16 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 SocialLinkRow(
                     title = "Instagram",
                     handle = "@offpolice2077",
-                    icon = Icons.Default.PhotoCamera,
+                    icon = SocialIcons.Instagram,
                     url = "https://www.instagram.com/offpolice2077"
                 ) {
                     uriHandler.openUri("https://www.instagram.com/offpolice2077")
                 }
 
                 SocialLinkRow(
-                    title = "WebRadioBot in Telegram",
+                    title = "WebRadioBot",
                     handle = "t.me/Web_radio_bot/app",
-                    icon = Icons.Default.PlayCircle,
+                    icon = SocialIcons.Telegram,
                     url = "https://t.me/Web_radio_bot/app"
                 ) {
                     uriHandler.openUri("https://t.me/Web_radio_bot/app")
