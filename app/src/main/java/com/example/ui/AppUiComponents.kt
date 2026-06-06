@@ -119,10 +119,6 @@ fun FullScreenLoadingScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            EqualizerAnimation()
-
             Spacer(modifier = Modifier.height(32.dp))
 
             // Progress bar
@@ -221,91 +217,6 @@ fun LoaderPulseAnimation() {
                 )
             }
     )
-}
-
-// Dancing Equalizer bar animations
-@Composable
-fun EqualizerAnimation(modifier: Modifier = Modifier, count: Int = 7) {
-    Row(
-        modifier = modifier.height(28.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        val infiniteTransition = rememberInfiniteTransition(label = "equalizer_pulse")
-
-        val animTimes = listOf(0.4f, 0.7f, 0.5f, 0.9f, 0.3f, 0.6f, 0.5f)
-
-        for (i in 0 until count) {
-            val ratio by infiniteTransition.animateFloat(
-                initialValue = 0.2f,
-                targetValue = 1.0f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = (1000 * animTimes[i % animTimes.size]).toInt(),
-                        easing = FastOutSlowInEasing
-                    ),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "eq_bar_$i"
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(5.dp)
-                    .fillMaxHeight()
-                    .graphicsLayer {
-                        scaleY = ratio
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                    }
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(SecondaryPink, LightPink)
-                        )
-                    )
-            )
-        }
-    }
-}
-
-// Compact persistent track bar inside the list
-@Composable
-fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.height(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        val infiniteTransition = rememberInfiniteTransition(label = "compact_eq")
-        val animTimes = listOf(0.3f, 0.6f, 0.4f, 0.5f)
-
-        for (i in 0 until 4) {
-            val ratio by infiniteTransition.animateFloat(
-                initialValue = 0.2f,
-                targetValue = 1.0f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = (500 * animTimes[i % animTimes.size]).toInt(),
-                        easing = FastOutSlowInEasing
-                    ),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "comp_eq_bar_$i"
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .fillMaxHeight()
-                    .graphicsLayer {
-                        scaleY = ratio
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                    }
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(PrimaryPink)
-            )
-        }
-    }
 }
 
 // Scroll to top button which animates visibility
@@ -484,68 +395,6 @@ fun SectionHeader(
     }
 }
 
-// Conditionally rendered border that delegates infinite pulse transitions ONLY if the station is playing.
-// This prevents hundreds of active VSYNC drawing listeners on inactive scrollable cards.
-@Composable
-fun ActiveStationBorder(
-    isActive: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    if (isActive) {
-        val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
-        val alphaAnim = infiniteTransition.animateFloat(
-            initialValue = 0.2f,
-            targetValue = 0.7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulse_alpha"
-        )
-        Box(
-            modifier = modifier.drawWithContent {
-                drawContent()
-                val strokeWidth = 1.dp.toPx()
-                val halfStroke = strokeWidth / 2f
-                val a = alphaAnim.value
-                val brush = Brush.linearGradient(
-                    colors = listOf(PrimaryPink.copy(alpha = a), SecondaryPink.copy(alpha = a * 0.3f))
-                )
-                drawRoundRect(
-                    brush = brush,
-                    topLeft = Offset(halfStroke, halfStroke),
-                    size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                    style = Stroke(width = strokeWidth)
-                )
-            }
-        ) {
-            content()
-        }
-    } else {
-        Box(
-            modifier = modifier.drawWithContent {
-                drawContent()
-                val strokeWidth = 1.dp.toPx()
-                val halfStroke = strokeWidth / 2f
-                val brush = Brush.linearGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
-                )
-                drawRoundRect(
-                    brush = brush,
-                    topLeft = Offset(halfStroke, halfStroke),
-                    size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                    style = Stroke(width = strokeWidth)
-                )
-            }
-        ) {
-            content()
-        }
-    }
-}
-
 // Station list item layout with high-fidelity visuals
 @Composable
 fun StationCard(
@@ -561,8 +410,7 @@ fun StationCard(
 ) {
     val cardBackground = if (isActive) ActiveCardBg else CardBg
 
-    ActiveStationBorder(
-        isActive = isActive,
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
@@ -570,12 +418,9 @@ fun StationCard(
             .background(cardBackground)
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
-            .testTag("station_card_${urlResolved.hashCode()}")
+            .testTag("station_card_${urlResolved.hashCode()}"),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
         // Cover Art Container
         val isLightTheme = !isSystemInDarkTheme()
         val fallbackIconTint = if (isLightTheme) Color.White else SecondaryPink
@@ -644,10 +489,6 @@ fun StationCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                if (isActive) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    CompactEqualizerAnimation()
-                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -687,7 +528,6 @@ fun StationCard(
             )
         }
     }
-}
 }
 
 @Composable

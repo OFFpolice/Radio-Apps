@@ -23,11 +23,7 @@ enum class PlaybackState {
 }
 
 class RadioPlayerManager(private val context: Context) {
-    private val contextToUse = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-        context.createAttributionContext("webradio")
-    } else {
-        context
-    }
+    private val contextToUse = context
     private var exoPlayer: ExoPlayer? = null
 
     companion object {

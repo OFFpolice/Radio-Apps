@@ -26,12 +26,7 @@ import com.example.ui.theme.*
 class MainActivity : ComponentActivity() {
 
     override fun attachBaseContext(newBase: Context?) {
-        val nextBase = if (newBase != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            newBase.createAttributionContext("webradio")
-        } else {
-            newBase
-        }
-        super.attachBaseContext(nextBase)
+        super.attachBaseContext(newBase)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

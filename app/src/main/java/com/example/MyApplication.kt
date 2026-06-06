@@ -12,12 +12,7 @@ import kotlinx.coroutines.Dispatchers
 
 class MyApplication : Application(), ImageLoaderFactory {
     override fun attachBaseContext(base: Context?) {
-        val nextBase = if (base != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            base.createAttributionContext("webradio")
-        } else {
-            base
-        }
-        super.attachBaseContext(nextBase)
+        super.attachBaseContext(base)
     }
 
     override fun newImageLoader(): ImageLoader {
