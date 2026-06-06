@@ -111,7 +111,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
             AppHeader(
                 searchQuery = searchQuery,
                 onSearchChange = { viewModel.updateSearchQuery(it) },
-                isSearchVisible = activeTab == AppTab.RADIO || activeTab == AppTab.FAVORITES
+                isSearchVisible = activeTab == AppTab.RADIO
             )
         },
         bottomBar = {
@@ -160,18 +160,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     )
                 }
                 AppTab.FAVORITES -> {
-                    val filteredFavorites = remember(favorites, searchQuery) {
-                        if (searchQuery.isBlank()) {
-                            favorites
-                        } else {
-                            favorites.filter {
-                                it.name.contains(searchQuery, ignoreCase = true) ||
-                                (it.tags != null && it.tags.contains(searchQuery, ignoreCase = true))
-                            }
-                        }
-                    }
                     FavoritesTab(
-                        favorites = filteredFavorites,
+                        favorites = favorites,
                         activeUrl = currentUrl,
                         onStationSelect = { favStation ->
                             viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon)
