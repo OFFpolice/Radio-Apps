@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,7 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -494,27 +498,17 @@ fun StationCard(
     modifier: Modifier = Modifier
 ) {
     val cardBackground = if (isActive) ActiveCardBg else CardBg
-    val borderBrush = if (isActive) {
-        val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
-        val alpha by infiniteTransition.animateFloat(
-            initialValue = 0.2f,
-            targetValue = 0.7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulse_alpha"
-        )
-        Brush.linearGradient(
-            colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
-        )
-    } else {
-        remember {
-            Brush.linearGradient(
-                colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
-            )
-        }
-    }
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
+    val alphaAnim = infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
+    )
 
     Row(
         modifier = modifier
@@ -522,22 +516,55 @@ fun StationCard(
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(cardBackground)
-            .border(
-                width = 1.dp,
-                brush = borderBrush,
-                shape = RoundedCornerShape(16.dp)
-            )
+            .drawWithContent {
+                drawContent()
+                val strokeWidth = 1.dp.toPx()
+                val halfStroke = strokeWidth / 2f
+                if (isActive) {
+                    val a = alphaAnim.value
+                    val brush = Brush.linearGradient(
+                        colors = listOf(PrimaryPink.copy(alpha = a), SecondaryPink.copy(alpha = a * 0.3f))
+                    )
+                    drawRoundRect(
+                        brush = brush,
+                        topLeft = Offset(halfStroke, halfStroke),
+                        size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                        style = Stroke(width = strokeWidth)
+                    )
+                } else {
+                    val brush = Brush.linearGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
+                    )
+                    drawRoundRect(
+                        brush = brush,
+                        topLeft = Offset(halfStroke, halfStroke),
+                        size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                        style = Stroke(width = strokeWidth)
+                    )
+                }
+            }
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
             .testTag("station_card_${urlResolved.hashCode()}"),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Cover Art Container
+        val isLightTheme = !isSystemInDarkTheme()
+        val fallbackIconTint = if (isLightTheme) Color.White else SecondaryPink
+
         Box(
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(SearchBg),
+                .then(
+                    if (isLightTheme) {
+                        Modifier.background(Brush.linearGradient(colors = listOf(LightPink, PrimaryPink)))
+                    } else {
+                        Modifier.background(SearchBg)
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (!faviconUrl.isNullOrBlank()) {
@@ -546,7 +573,7 @@ fun StationCard(
                     Icon(
                         imageVector = Icons.Default.Radio,
                         contentDescription = "Standard Fallback Radio Cover Icon",
-                        tint = SecondaryPink,
+                        tint = fallbackIconTint,
                         modifier = Modifier.size(28.dp)
                     )
                 } else {
@@ -569,7 +596,7 @@ fun StationCard(
                 Icon(
                     imageVector = Icons.Default.Radio,
                     contentDescription = "Standard Fallback Radio Cover Icon",
-                    tint = SecondaryPink,
+                    tint = fallbackIconTint,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -771,10 +798,9 @@ fun PlayerBar(
                 tint = statusColor,
                 modifier = Modifier
                     .size(16.dp)
-                    .drawBehind {
+                    .graphicsLayer {
                         if (playbackState == PlaybackState.BUFFERING) {
-                            // Apply custom rotation visually via Modifier or raw canvas rotation if needed.
-                            // We will simply let compose handle the rotation easily or keep static icon.
+                            rotationZ = spinAngle
                         }
                     }
             )
