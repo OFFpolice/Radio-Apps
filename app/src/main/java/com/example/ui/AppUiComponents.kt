@@ -537,7 +537,7 @@ fun StationCard(
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF2C2C2C)),
+                .background(SearchBg),
             contentAlignment = Alignment.Center
         ) {
             if (!faviconUrl.isNullOrBlank()) {
