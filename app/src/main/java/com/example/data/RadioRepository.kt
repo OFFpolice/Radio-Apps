@@ -31,7 +31,7 @@ class RadioRepository(context: Context) {
     // Current resolved server for API operations
     private var resolvedServer: String = "https://de1.api.radio-browser.info"
 
-    suspend fun resolveActiveServer() {
+    suspend fun resolveActiveServer() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
             val servers = api.getServers()
             if (servers.isNotEmpty()) {
@@ -44,9 +44,9 @@ class RadioRepository(context: Context) {
         }
     }
 
-    suspend fun searchStations(name: String?, limit: Int, offset: Int): List<ApiStation> {
+    suspend fun searchStations(name: String?, limit: Int, offset: Int): List<ApiStation> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val pathUrl = "$resolvedServer/json/stations/search"
-        return api.searchStations(
+        api.searchStations(
             url = pathUrl,
             name = name?.ifBlank { null },
             limit = limit,
@@ -57,7 +57,7 @@ class RadioRepository(context: Context) {
     // Favorites Operations
     fun getFavoritesFlow(): Flow<List<FavoriteStation>> = favoriteStationDao.getAllFavorites()
 
-    suspend fun addFavorite(urlResolved: String, name: String, tags: String?, favicon: String?) {
+    suspend fun addFavorite(urlResolved: String, name: String, tags: String?, favicon: String?) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val favorite = FavoriteStation(
             urlResolved = urlResolved,
             name = name,
@@ -67,7 +67,7 @@ class RadioRepository(context: Context) {
         favoriteStationDao.insertFavorite(favorite)
     }
 
-    suspend fun removeFavoriteByUrl(urlResolved: String) {
+    suspend fun removeFavoriteByUrl(urlResolved: String) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         favoriteStationDao.deleteFavoriteByUrl(urlResolved)
     }
 

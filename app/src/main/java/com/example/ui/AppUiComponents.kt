@@ -484,6 +484,68 @@ fun SectionHeader(
     }
 }
 
+// Conditionally rendered border that delegates infinite pulse transitions ONLY if the station is playing.
+// This prevents hundreds of active VSYNC drawing listeners on inactive scrollable cards.
+@Composable
+fun ActiveStationBorder(
+    isActive: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    if (isActive) {
+        val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
+        val alphaAnim = infiniteTransition.animateFloat(
+            initialValue = 0.2f,
+            targetValue = 0.7f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulse_alpha"
+        )
+        Box(
+            modifier = modifier.drawWithContent {
+                drawContent()
+                val strokeWidth = 1.dp.toPx()
+                val halfStroke = strokeWidth / 2f
+                val a = alphaAnim.value
+                val brush = Brush.linearGradient(
+                    colors = listOf(PrimaryPink.copy(alpha = a), SecondaryPink.copy(alpha = a * 0.3f))
+                )
+                drawRoundRect(
+                    brush = brush,
+                    topLeft = Offset(halfStroke, halfStroke),
+                    size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+        ) {
+            content()
+        }
+    } else {
+        Box(
+            modifier = modifier.drawWithContent {
+                drawContent()
+                val strokeWidth = 1.dp.toPx()
+                val halfStroke = strokeWidth / 2f
+                val brush = Brush.linearGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
+                )
+                drawRoundRect(
+                    brush = brush,
+                    topLeft = Offset(halfStroke, halfStroke),
+                    size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+        ) {
+            content()
+        }
+    }
+}
+
 // Station list item layout with high-fidelity visuals
 @Composable
 fun StationCard(
@@ -498,58 +560,22 @@ fun StationCard(
     modifier: Modifier = Modifier
 ) {
     val cardBackground = if (isActive) ActiveCardBg else CardBg
-    
-    val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
-    val alphaAnim = infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha"
-    )
 
-    Row(
+    ActiveStationBorder(
+        isActive = isActive,
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(cardBackground)
-            .drawWithContent {
-                drawContent()
-                val strokeWidth = 1.dp.toPx()
-                val halfStroke = strokeWidth / 2f
-                if (isActive) {
-                    val a = alphaAnim.value
-                    val brush = Brush.linearGradient(
-                        colors = listOf(PrimaryPink.copy(alpha = a), SecondaryPink.copy(alpha = a * 0.3f))
-                    )
-                    drawRoundRect(
-                        brush = brush,
-                        topLeft = Offset(halfStroke, halfStroke),
-                        size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                        style = Stroke(width = strokeWidth)
-                    )
-                } else {
-                    val brush = Brush.linearGradient(
-                        colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
-                    )
-                    drawRoundRect(
-                        brush = brush,
-                        topLeft = Offset(halfStroke, halfStroke),
-                        size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                        style = Stroke(width = strokeWidth)
-                    )
-                }
-            }
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
-            .testTag("station_card_${urlResolved.hashCode()}"),
-        verticalAlignment = Alignment.CenterVertically
+            .testTag("station_card_${urlResolved.hashCode()}")
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         // Cover Art Container
         val isLightTheme = !isSystemInDarkTheme()
         val fallbackIconTint = if (isLightTheme) Color.White else SecondaryPink
@@ -661,6 +687,7 @@ fun StationCard(
             )
         }
     }
+}
 }
 
 @Composable
@@ -1239,6 +1266,20 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         )
     }
 
+    // Cache translated option labels to completely eliminate GC overhead and calculations during frame rendering
+    val currentLang = LocalLanguageSetting.current
+    val translatedLanguageOptions = remember(currentLang) {
+        languageOptions.map { (opt, labelKey, hintKey) ->
+            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
+        }
+    }
+
+    val translatedThemeOptions = remember(currentLang) {
+        themeOptions.map { (opt, labelKey, hintKey) ->
+            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
+        }
+    }
+
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1252,9 +1293,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         item {
             SettingsOptionCard(
                 title = stringLoc("setting_language"),
-                options = languageOptions.map { (opt, labelKey, hintKey) ->
-                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
-                },
+                options = translatedLanguageOptions,
                 selected = languageSetting,
                 onSelect = { viewModel.setLanguageSetting(it) }
             )
@@ -1264,9 +1303,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         item {
             SettingsOptionCard(
                 title = stringLoc("setting_theme"),
-                options = themeOptions.map { (opt, labelKey, hintKey) ->
-                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
-                },
+                options = translatedThemeOptions,
                 selected = themeSetting,
                 onSelect = { viewModel.setThemeSetting(it) }
             )
