@@ -71,7 +71,7 @@ class RadioPlayerManager(private val context: Context) {
 
         exoPlayer = ExoPlayer.Builder(contextToUse)
             .setLoadControl(loadControl)
-            .setAudioAttributes(audioAttributes, true)
+            .setAudioAttributes(audioAttributes, false)
             .build()
             .apply {
                 playWhenReady = true

@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -110,7 +111,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
             AppHeader(
                 searchQuery = searchQuery,
                 onSearchChange = { viewModel.updateSearchQuery(it) },
-                isSearchVisible = activeTab == AppTab.RADIO
+                isSearchVisible = activeTab == AppTab.RADIO || activeTab == AppTab.FAVORITES
             )
         },
         bottomBar = {
@@ -159,8 +160,18 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     )
                 }
                 AppTab.FAVORITES -> {
+                    val filteredFavorites = remember(favorites, searchQuery) {
+                        if (searchQuery.isBlank()) {
+                            favorites
+                        } else {
+                            favorites.filter {
+                                it.name.contains(searchQuery, ignoreCase = true) ||
+                                (it.tags != null && it.tags.contains(searchQuery, ignoreCase = true))
+                            }
+                        }
+                    }
                     FavoritesTab(
-                        favorites = favorites,
+                        favorites = filteredFavorites,
                         activeUrl = currentUrl,
                         onStationSelect = { favStation ->
                             viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon)

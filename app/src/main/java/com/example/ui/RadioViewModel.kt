@@ -97,7 +97,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
 
     private var offset = 0
-    private val LIMIT = 100
+    private val LIMIT = 25
     private var searchJob: Job? = null
 
     init {
@@ -152,6 +152,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
 
     fun selectTab(tab: AppTab) {
         _activeTab.value = tab
+        _searchQuery.value = ""
     }
 
     fun updateSearchQuery(query: String) {
@@ -173,23 +174,24 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             try {
-                val processed = withContext(Dispatchers.Default) {
+                val (newStations, rawCount, hasMoreResults) = withContext(Dispatchers.Default) {
                     val results = repository.searchStations(query, LIMIT, offset)
                     val validResults = results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
 
-                    if (reset) {
-                        Pair(validResults.distinctBy { it.url_resolved }, validResults.size)
+                    val mergedList = if (reset) {
+                        validResults.distinctBy { it.url_resolved }
                     } else {
                         val currentList = _stations.value
                         val existingUrls = currentList.map { it.url_resolved }.toSet()
                         val newUniqueResults = validResults.filter { !existingUrls.contains(it.url_resolved) }
-                        Pair(currentList + newUniqueResults, validResults.size)
+                        currentList + newUniqueResults
                     }
+                    Triple(mergedList, results.size, results.size == LIMIT)
                 }
 
-                _stations.value = processed.first
-                offset += processed.second
-                _hasMore.value = processed.second == LIMIT
+                _stations.value = newStations
+                offset += rawCount
+                _hasMore.value = hasMoreResults
             } catch (e: Exception) {
                 e.printStackTrace()
                 _apiError.value = "Ошибка сети при загрузке станций"

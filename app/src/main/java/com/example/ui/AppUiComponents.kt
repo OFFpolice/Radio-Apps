@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.data.ApiStation
 import com.example.data.FavoriteStation
 import com.example.player.PlaybackState
@@ -453,6 +454,8 @@ fun StationCard(
                         ImageRequest.Builder(context)
                             .data(faviconUrl)
                             .crossfade(true)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
                             .build()
                     }
                     AsyncImage(
