@@ -1,0 +1,1241 @@
+package com.example.ui
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
+import com.example.data.ApiStation
+import com.example.data.FavoriteStation
+import com.example.player.PlaybackState
+import com.example.ui.theme.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+
+@Composable
+fun FullScreenLoadingScreen(
+    progress: Float,
+    statusText: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(150.dp)
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                LoaderPulseAnimation()
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(PrimaryPink, SecondaryPink),
+                                radius = 100f
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Radio,
+                        contentDescription = "Radio Logo Icon",
+                        tint = Color.White,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = "WebRadioBot",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = PrimaryPink,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = stringLoc("loading_tagline"),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Box(
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(SearchBg)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(SecondaryPink, LightPink)
+                            )
+                        )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = statusText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextSecondary,
+                letterSpacing = 0.5.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun LoaderPulseAnimation() {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse_rings")
+
+    val pulseScale1 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ring1_scale"
+    )
+
+    val pulseOpacity1 by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ring1_opacity"
+    )
+
+    val pulseScale2 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ring2_scale"
+    )
+
+    val pulseOpacity2 by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ring2_opacity"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawBehind {
+                drawCircle(
+                    color = PrimaryPink.copy(alpha = pulseOpacity1),
+                    radius = (size.minDimension / 2f) * pulseScale1,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+                drawCircle(
+                    color = PrimaryPink.copy(alpha = pulseOpacity2 * 0.5f),
+                    radius = (size.minDimension / 2f) * pulseScale2 * 1.2f,
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+            }
+    )
+}
+
+@Composable
+fun ScrollToTopButton(
+    visible: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
+        modifier = modifier
+    ) {
+        FloatingActionButton(
+            onClick = onClick,
+            containerColor = SecondaryPink,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .size(48.dp)
+                .testTag("scroll_to_top")
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowUpward,
+                contentDescription = "Scroll to top icon",
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun AppHeader(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    isSearchVisible: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isEmpty()) {
+            focusManager.clearFocus()
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .background(CardBg)
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "WebRadioBot",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryPink,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        if (isSearchVisible) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(SearchBg)
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(26.dp))
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search Icon",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(24.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                BasicTextField2_Placeholder(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    placeholderText = stringLoc("search_placeholder"),
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onSearchChange("") },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear Search",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+}
+
+@Composable
+fun BasicTextField2_Placeholder(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholderText: String,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
+        if (value.isEmpty()) {
+            Text(
+                text = placeholderText,
+                color = TextSecondary,
+                fontSize = 16.sp
+            )
+        }
+        androidx.compose.foundation.text.BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                color = TextPrimary,
+                fontSize = 16.sp
+            ),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("search_input")
+        )
+    }
+}
+
+@Composable
+fun SectionHeader(
+    title: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = "Section Head Icon",
+            tint = SecondaryPink,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title.uppercase(),
+            fontWeight = FontWeight.SemiBold,
+            color = TextSecondary,
+            fontSize = 14.sp,
+            letterSpacing = 0.5.sp
+        )
+    }
+}
+
+@Composable
+fun StationCard(
+    name: String,
+    faviconUrl: String?,
+    tags: String?,
+    urlResolved: String,
+    isActive: Boolean,
+    isFavorite: Boolean,
+    onSelect: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cardBackground = if (isActive) ActiveCardBg else CardBg
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(cardBackground)
+            .clickable(onClick = onSelect)
+            .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
+            .testTag("station_card_${urlResolved.hashCode()}"),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val isLightTheme = !isSystemInDarkTheme()
+        val fallbackIconTint = if (isLightTheme) Color.White else SecondaryPink
+
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .then(
+                    if (isLightTheme) {
+                        Modifier.background(Brush.linearGradient(colors = listOf(LightPink, PrimaryPink)))
+                    } else {
+                        Modifier.background(SearchBg)
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!faviconUrl.isNullOrBlank()) {
+                var isError by remember(faviconUrl) { mutableStateOf(false) }
+                if (isError) {
+                    Icon(
+                        imageVector = Icons.Default.Radio,
+                        contentDescription = "Standard Fallback Radio Cover Icon",
+                        tint = fallbackIconTint,
+                        modifier = Modifier.size(28.dp)
+                    )
+                } else {
+                    val context = LocalContext.current
+                    val imageRequest = remember(faviconUrl) {
+                        ImageRequest.Builder(context)
+                            .data(faviconUrl)
+                            .crossfade(true)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = "Station Favicon Cover",
+                        contentScale = ContentScale.Crop,
+                        onError = { isError = true },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Radio,
+                    contentDescription = "Standard Fallback Radio Cover Icon",
+                    tint = fallbackIconTint,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = name.trim().ifEmpty { stringLoc("no_title") },
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val parsedTags = remember(tags) {
+                    tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.distinct()?.take(3) ?: emptyList()
+                }
+                if (parsedTags.isNotEmpty()) {
+                    parsedTags.forEach { tag ->
+                        TagChip(text = tag, isActive = isActive)
+                    }
+                } else {
+                    TagChip(text = "radio", isActive = isActive)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier
+                .size(36.dp)
+                .testTag("fav_btn_${urlResolved.hashCode()}")
+        ) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                tint = if (isFavorite) PrimaryPink else TextSecondary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TagChip(text: String, isActive: Boolean) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = if (isActive) Color(0xFF3A2A33) else SearchBg,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isActive) Color(0xFFE0B0C0) else TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PlayerBar(
+    currentName: String?,
+    playbackState: PlaybackState,
+    onPlayToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val borderColor = TextSecondary.copy(alpha = 0.12f)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(CardBg)
+            .drawBehind {
+                drawLine(
+                    color = borderColor,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag("player_bar"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = onPlayToggle,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = SecondaryPink,
+                contentColor = Color.White
+            ),
+            shape = CircleShape,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier
+                .size(44.dp)
+                .testTag("play_toggle_btn")
+        ) {
+            val icon = when (playbackState) {
+                PlaybackState.PLAYING -> Icons.Default.Pause
+                else -> Icons.Default.PlayArrow
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = "Play Control Toggle",
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
+        Text(
+            text = currentName ?: stringLoc("select_station"),
+            modifier = Modifier
+                .weight(1f)
+                .basicMarquee()
+                .testTag("playing_station_title"),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = TextPrimary
+            ),
+            maxLines = 1
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.wrapContentWidth()
+        ) {
+            val statusColor = when (playbackState) {
+                PlaybackState.PLAYING -> Color(0xFF4CAF50)
+                PlaybackState.BUFFERING -> LightPink
+                PlaybackState.PAUSED -> Color(0xFFFFA000)
+                PlaybackState.ERROR -> Color(0xFFF44336)
+                PlaybackState.IDLE -> TextSecondary
+            }
+
+            val statusText = when (playbackState) {
+                PlaybackState.PLAYING -> stringLoc("playing")
+                PlaybackState.BUFFERING -> stringLoc("buffering")
+                PlaybackState.PAUSED -> stringLoc("paused")
+                PlaybackState.ERROR -> stringLoc("error")
+                PlaybackState.IDLE -> stringLoc("idle")
+            }
+
+            val statusIcon = when (playbackState) {
+                PlaybackState.PLAYING -> Icons.Default.VolumeUp
+                PlaybackState.BUFFERING -> Icons.Default.Sync
+                PlaybackState.PAUSED -> Icons.Default.PauseCircle
+                PlaybackState.ERROR -> Icons.Default.Error
+                PlaybackState.IDLE -> Icons.Default.Circle
+            }
+
+            val animateRotationMultiplier = rememberInfiniteTransition(label = "spin_angle")
+            val spinAngle by animateRotationMultiplier.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "loading_angle"
+            )
+
+            Icon(
+                imageVector = statusIcon,
+                contentDescription = "Status indicator",
+                tint = statusColor,
+                modifier = Modifier
+                    .size(16.dp)
+                    .graphicsLayer {
+                        if (playbackState == PlaybackState.BUFFERING) {
+                            rotationZ = spinAngle
+                        }
+                    }
+            )
+
+            Text(
+                text = statusText,
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+fun AppBottomNav(
+    activeTab: AppTab,
+    onTabSelect: (AppTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavigationBar(
+        containerColor = CardBg,
+        contentColor = TextSecondary,
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        modifier = modifier.testTag("bottom_nav")
+    ) {
+        NavigationBarItem(
+            selected = activeTab == AppTab.RADIO,
+            onClick = { onTabSelect(AppTab.RADIO) },
+            icon = {
+                Icon(
+                    imageVector = if (activeTab == AppTab.RADIO) Icons.Filled.Radio else Icons.Outlined.Radio,
+                    contentDescription = "Radio Tab icon"
+                )
+            },
+            label = { Text(stringLoc("tab_radio")) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = PrimaryPink,
+                selectedTextColor = PrimaryPink,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = PrimaryPink.copy(alpha = 0.1f)
+            ),
+            modifier = Modifier.testTag("nav_item_radio")
+        )
+
+        NavigationBarItem(
+            selected = activeTab == AppTab.FAVORITES,
+            onClick = { onTabSelect(AppTab.FAVORITES) },
+            icon = {
+                Icon(
+                    imageVector = if (activeTab == AppTab.FAVORITES) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = "Favorites Tab icon"
+                )
+            },
+            label = { Text(stringLoc("tab_favorites")) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = PrimaryPink,
+                selectedTextColor = PrimaryPink,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = PrimaryPink.copy(alpha = 0.1f)
+            ),
+            modifier = Modifier.testTag("nav_item_favorites")
+        )
+
+        NavigationBarItem(
+            selected = activeTab == AppTab.SETTINGS,
+            onClick = { onTabSelect(AppTab.SETTINGS) },
+            icon = {
+                Icon(
+                    imageVector = if (activeTab == AppTab.SETTINGS) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Settings Tab icon"
+                )
+            },
+            label = { Text(stringLoc("tab_settings")) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = PrimaryPink,
+                selectedTextColor = PrimaryPink,
+                unselectedIconColor = TextSecondary,
+                unselectedTextColor = TextSecondary,
+                indicatorColor = PrimaryPink.copy(alpha = 0.1f)
+            ),
+            modifier = Modifier.testTag("nav_item_settings")
+        )
+    }
+}
+
+@Composable
+fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = "Empty list icon",
+            tint = TextMuted,
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            color = TextSecondary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun RadioTab(
+    stations: List<ApiStation>,
+    favorites: List<FavoriteStation>,
+    activeUrl: String?,
+    isLoading: Boolean,
+    hasMore: Boolean,
+    onStationSelect: (ApiStation) -> Unit,
+    onToggleFavorite: (ApiStation) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    val favoriteUrls = remember(favorites) {
+        favorites.map { it.urlResolved }.toSet()
+    }
+
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val totalItemsCount = listState.layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItemsCount > 0 && lastVisibleItemIndex >= (totalItemsCount - 10)
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && !isLoading && hasMore) {
+            onLoadMore()
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            item(contentType = "header") {
+                SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
+            }
+
+            if (stations.isEmpty() && !isLoading) {
+                item(contentType = "empty_placeholder") {
+                    EmptyPlaceholder(
+                        message = stringLoc("nothing_found"),
+                        icon = Icons.Default.SearchOff
+                    )
+                }
+            } else {
+                items(
+                    items = stations,
+                    key = { it.url_resolved },
+                    contentType = { "station_card" }
+                ) { station ->
+                    val isActive = activeUrl == station.url_resolved
+                    val isFav = favoriteUrls.contains(station.url_resolved)
+
+                    val onSelectLambda = remember(station) {
+                        { onStationSelect(station) }
+                    }
+                    val onToggleFavLambda = remember(station) {
+                        { onToggleFavorite(station) }
+                    }
+
+                    StationCard(
+                        name = station.name,
+                        faviconUrl = station.favicon,
+                        tags = station.tags,
+                        urlResolved = station.url_resolved,
+                        isActive = isActive,
+                        isFavorite = isFav,
+                        onSelect = onSelectLambda,
+                        onToggleFavorite = onToggleFavLambda
+                    )
+                }
+
+                if (isLoading) {
+                    item(contentType = "loading_indicator") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = PrimaryPink,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        val isScrollBtnVisible by remember {
+            derivedStateOf { listState.firstVisibleItemIndex > 4 }
+        }
+
+        ScrollToTopButton(
+            visible = isScrollBtnVisible,
+            onClick = {
+                scope.launch { listState.animateScrollToItem(0) }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 20.dp, end = 20.dp)
+        )
+    }
+}
+
+@Composable
+fun FavoritesTab(
+    favorites: List<FavoriteStation>,
+    activeUrl: String?,
+    onStationSelect: (FavoriteStation) -> Unit,
+    onToggleFavorite: (FavoriteStation) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    Box(modifier = modifier.fillMaxSize()) {
+        if (favorites.isEmpty()) {
+            EmptyPlaceholder(
+                message = stringLoc("empty_favorites"),
+                icon = Icons.Outlined.FavoriteBorder
+            )
+        } else {
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                item(contentType = "header") {
+                    SectionHeader(title = stringLoc("tab_favorites"), icon = Icons.Default.Favorite)
+                }
+
+                items(
+                    items = favorites,
+                    key = { it.urlResolved },
+                    contentType = { "station_card" }
+                ) { station ->
+                    val isActive = activeUrl == station.urlResolved
+
+                    val onSelectLambda = remember(station) {
+                        { onStationSelect(station) }
+                    }
+                    val onToggleFavLambda = remember(station) {
+                        { onToggleFavorite(station) }
+                    }
+
+                    StationCard(
+                        name = station.name,
+                        faviconUrl = station.favicon,
+                        tags = station.tags,
+                        urlResolved = station.urlResolved,
+                        isActive = isActive,
+                        isFavorite = true,
+                        onSelect = onSelectLambda,
+                        onToggleFavorite = onToggleFavLambda
+                    )
+                }
+            }
+
+            val isScrollBtnVisible by remember {
+                derivedStateOf { listState.firstVisibleItemIndex > 4 }
+            }
+
+            ScrollToTopButton(
+                visible = isScrollBtnVisible,
+                onClick = {
+                    scope.launch { listState.animateScrollToItem(0) }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 20.dp, end = 20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun <T> SettingsOptionCard(
+    title: String,
+    options: List<Triple<T, String, String?>>,
+    selected: T,
+    onSelect: (T) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryPink,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        options.forEach { (option, label, subtitle) ->
+            val isSelected = option == selected
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) PrimaryPink.copy(alpha = 0.12f) else Color.Transparent)
+                    .clickable { onSelect(option) }
+                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = isSelected,
+                    onClick = { onSelect(option) },
+                    colors = RadioButtonDefaults.colors(
+                        selectedColor = PrimaryPink,
+                        unselectedColor = TextSecondary
+                    )
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = TextPrimary
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SocialLinkRow(
+    title: String,
+    handle: String,
+    icon: ImageVector,
+    url: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(PrimaryPink.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PrimaryPink,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = handle,
+                fontSize = 12.sp,
+                color = TextSecondary
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.Launch,
+            contentDescription = "Open Link",
+            tint = TextMuted,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@Composable
+fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
+    val themeSetting by viewModel.themeSetting.collectAsStateWithLifecycle()
+    val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
+    val languageOptions = remember {
+        listOf(
+            Triple(AppLanguageSetting.AUTO, "language_auto", "language_default_hint"),
+            Triple(AppLanguageSetting.EN, "language_en", null),
+            Triple(AppLanguageSetting.RU, "language_ru", null),
+            Triple(AppLanguageSetting.UK, "language_uk", null)
+        )
+    }
+
+    val themeOptions = remember {
+        listOf(
+            Triple(AppThemeSetting.SYSTEM, "theme_system", "theme_default_hint"),
+            Triple(AppThemeSetting.LIGHT, "theme_light", null),
+            Triple(AppThemeSetting.DARK, "theme_dark", null)
+        )
+    }
+
+    val currentLang = LocalLanguageSetting.current
+    val translatedLanguageOptions = remember(currentLang) {
+        languageOptions.map { (opt, labelKey, hintKey) ->
+            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
+        }
+    }
+
+    val translatedThemeOptions = remember(currentLang) {
+        themeOptions.map { (opt, labelKey, hintKey) ->
+            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
+        }
+    }
+
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier.fillMaxSize()
+    ) {
+        item(contentType = "header") {
+            SectionHeader(title = stringLoc("tab_settings"), icon = Icons.Default.Settings)
+        }
+
+        item(contentType = "option_card") {
+            SettingsOptionCard(
+                title = stringLoc("setting_language"),
+                options = translatedLanguageOptions,
+                selected = languageSetting,
+                onSelect = { viewModel.setLanguageSetting(it) }
+            )
+        }
+
+        item(contentType = "option_card") {
+            SettingsOptionCard(
+                title = stringLoc("setting_theme"),
+                options = translatedThemeOptions,
+                selected = themeSetting,
+                onSelect = { viewModel.setThemeSetting(it) }
+            )
+        }
+
+        item(contentType = "about_card") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardBg)
+                    .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Radio,
+                    contentDescription = null,
+                    tint = SecondaryPink,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = "WebRadioBot",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringLoc("about_text"),
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = stringLoc("socials_heading").uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryPink,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+
+                SocialLinkRow(
+                    title = "Telegram",
+                    handle = "@OFFpolice",
+                    icon = SocialIcons.Telegram,
+                    url = "https://t.me/OFFpolice"
+                ) {
+                    uriHandler.openUri("https://t.me/OFFpolice")
+                }
+
+                SocialLinkRow(
+                    title = "X (Twitter)",
+                    handle = "@OFFpolice2077",
+                    icon = SocialIcons.X,
+                    url = "https://x.com/OFFpolice2077"
+                ) {
+                    uriHandler.openUri("https://x.com/OFFpolice2077")
+                }
+
+                SocialLinkRow(
+                    title = "Instagram",
+                    handle = "@offpolice2077",
+                    icon = SocialIcons.Instagram,
+                    url = "https://www.instagram.com/offpolice2077"
+                ) {
+                    uriHandler.openUri("https://www.instagram.com/offpolice2077")
+                }
+
+                SocialLinkRow(
+                    title = "WebRadioBot",
+                    handle = "t.me/Web_radio_bot/app",
+                    icon = SocialIcons.Telegram,
+                    url = "https://t.me/Web_radio_bot/app"
+                ) {
+                    uriHandler.openUri("https://t.me/Web_radio_bot/app")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = stringLoc("link_dev_api"),
+                    color = PrimaryPink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { uriHandler.openUri("https://api.radio-browser.info/") }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringLoc("version_info"),
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
