@@ -74,7 +74,6 @@ object SocialIcons {
             fill = SolidColor(Color.Black),
             pathFillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
         ) {
-            // Perfect Squircle Outer Box (x=3 to 21, y=3 to 21, corner radius=6)
             moveTo(15f, 3f)
             lineTo(9f, 3f)
             curveTo(5.686f, 3f, 3f, 5.686f, 3f, 9f)
@@ -86,7 +85,6 @@ object SocialIcons {
             curveTo(21f, 5.686f, 18.314f, 3f, 15f, 3f)
             close()
             
-            // Perfect Squircle Inner Box (x=5 to 19, y=5 to 19, corner radius=4) (Hollows outer box under EvenOdd)
             moveTo(15f, 5f)
             lineTo(9f, 5f)
             curveTo(6.791f, 5f, 5f, 6.791f, 5f, 9f)
@@ -98,7 +96,6 @@ object SocialIcons {
             curveTo(19f, 6.791f, 17.209f, 5f, 15f, 5f)
             close()
             
-            // Center Circle Outer Path (radius=5, centered at 12,12)
             moveTo(12f, 7f)
             curveTo(9.239f, 7f, 7f, 9.239f, 7f, 12f)
             curveTo(7f, 14.761f, 9.239f, 17f, 12f, 17f)
@@ -106,7 +103,6 @@ object SocialIcons {
             curveTo(17f, 9.239f, 14.761f, 7f, 12f, 7f)
             close()
             
-            // Center Circle Inner Path (radius=3, centered at 12,12) (Hollows center circle outline under EvenOdd)
             moveTo(12f, 9f)
             curveTo(13.657f, 9f, 15f, 10.343f, 15f, 12f)
             curveTo(15f, 13.657f, 13.657f, 15f, 12f, 15f)
@@ -114,7 +110,6 @@ object SocialIcons {
             curveTo(9f, 10.343f, 10.343f, 9f, 12f, 9f)
             close()
             
-            // Top-right flash dot (radius=1.2, centered at 16.5,7.5)
             moveTo(16.5f, 6.3f)
             curveTo(15.837f, 6.3f, 15.3f, 6.837f, 15.3f, 7.5f)
             curveTo(15.3f, 8.163f, 15.837f, 8.7f, 16.5f, 8.7f)

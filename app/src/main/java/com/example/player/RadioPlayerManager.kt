@@ -1,7 +1,6 @@
 package com.example.player
 
 import android.content.Context
-import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -43,7 +42,6 @@ class RadioPlayerManager(private val context: Context) {
     private val _currentFavicon = MutableStateFlow<String?>(null)
     val currentFavicon: StateFlow<String?> = _currentFavicon.asStateFlow()
 
-    // Flag to handle manual pause state from user
     private var isManuallyPaused = false
 
     init {
@@ -53,14 +51,12 @@ class RadioPlayerManager(private val context: Context) {
     private fun initializePlayer() {
         if (exoPlayer != null) return
 
-        // Set low buffering limits so that playback starts immediately!
-        // We set targets for live stream speed optimization with 0.25s start latency.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                1000, // minBufferMs
-                3000, // maxBufferMs
-                250,  // bufferForPlaybackMs
-                500   // bufferForPlaybackAfterRebufferMs
+                1000,
+                3000,
+                250,
+                500
             )
             .build()
 

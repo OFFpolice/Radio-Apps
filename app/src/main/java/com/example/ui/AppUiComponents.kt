@@ -23,17 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -53,7 +48,6 @@ import com.example.ui.theme.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
-// Full screen loaders representing loadingScreen element from user code
 @Composable
 fun FullScreenLoadingScreen(
     progress: Float,
@@ -71,7 +65,6 @@ fun FullScreenLoadingScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(24.dp)
         ) {
-            // Animated concentric pulsing rings
             Box(
                 modifier = Modifier
                     .size(150.dp)
@@ -122,7 +115,6 @@ fun FullScreenLoadingScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Progress bar
             Box(
                 modifier = Modifier
                     .width(200.dp)
@@ -204,13 +196,11 @@ fun LoaderPulseAnimation() {
         modifier = Modifier
             .fillMaxSize()
             .drawBehind {
-                // Ring 1
                 drawCircle(
                     color = PrimaryPink.copy(alpha = pulseOpacity1),
                     radius = (size.minDimension / 2f) * pulseScale1,
                     style = Stroke(width = 2.dp.toPx())
                 )
-                // Staggered Ring 2 (outer)
                 drawCircle(
                     color = PrimaryPink.copy(alpha = pulseOpacity2 * 0.5f),
                     radius = (size.minDimension / 2f) * pulseScale2 * 1.2f,
@@ -220,7 +210,6 @@ fun LoaderPulseAnimation() {
     )
 }
 
-// Scroll to top button which animates visibility
 @Composable
 fun ScrollToTopButton(
     visible: Boolean,
@@ -251,7 +240,6 @@ fun ScrollToTopButton(
     }
 }
 
-// Main Top App bar
 @Composable
 fun AppHeader(
     searchQuery: String,
@@ -261,7 +249,6 @@ fun AppHeader(
 ) {
     val focusManager = LocalFocusManager.current
 
-    // Reactively clear focus and hide keyboard if search is cleared
     LaunchedEffect(searchQuery) {
         if (searchQuery.isEmpty()) {
             focusManager.clearFocus()
@@ -334,7 +321,6 @@ fun AppHeader(
     }
 }
 
-// Quick fallback basic textfield placeholder implementation
 @Composable
 fun BasicTextField2_Placeholder(
     value: String,
@@ -365,7 +351,6 @@ fun BasicTextField2_Placeholder(
     }
 }
 
-// Section title mimicking .section-title class
 @Composable
 fun SectionHeader(
     title: String,
@@ -396,7 +381,6 @@ fun SectionHeader(
     }
 }
 
-// Station list item layout with high-fidelity visuals
 @Composable
 fun StationCard(
     name: String,
@@ -422,7 +406,6 @@ fun StationCard(
             .testTag("station_card_${urlResolved.hashCode()}"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Cover Art Container
         val isLightTheme = !isSystemInDarkTheme()
         val fallbackIconTint = if (isLightTheme) Color.White else SecondaryPink
 
@@ -478,7 +461,6 @@ fun StationCard(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Station Details Info
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -496,7 +478,6 @@ fun StationCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Badges / Tags row (Optimized using remember for string splitting operations)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -516,7 +497,6 @@ fun StationCard(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Favorite Toggle button
         IconButton(
             onClick = onToggleFavorite,
             modifier = Modifier
@@ -554,7 +534,6 @@ fun TagChip(text: String, isActive: Boolean) {
     }
 }
 
-// Universal Persistent Player control block at the bottom of the Screen
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerBar(
@@ -581,7 +560,6 @@ fun PlayerBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Large Play Button
         Button(
             onClick = onPlayToggle,
             colors = ButtonDefaults.buttonColors(
@@ -605,7 +583,6 @@ fun PlayerBar(
             )
         }
 
-        // Running track name (marquee!)
         Text(
             text = currentName ?: stringLoc("select_station"),
             modifier = Modifier
@@ -620,17 +597,16 @@ fun PlayerBar(
             maxLines = 1
         )
 
-        // Status Area Indicator
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.wrapContentWidth()
         ) {
             val statusColor = when (playbackState) {
-                PlaybackState.PLAYING -> Color(0xFF4CAF50) // Green
+                PlaybackState.PLAYING -> Color(0xFF4CAF50)
                 PlaybackState.BUFFERING -> LightPink
-                PlaybackState.PAUSED -> Color(0xFFFFA000) // Orange
-                PlaybackState.ERROR -> Color(0xFFF44336) // Red
+                PlaybackState.PAUSED -> Color(0xFFFFA000)
+                PlaybackState.ERROR -> Color(0xFFF44336)
                 PlaybackState.IDLE -> TextSecondary
             }
 
@@ -650,7 +626,6 @@ fun PlayerBar(
                 PlaybackState.IDLE -> Icons.Default.Circle
             }
 
-            // Simple conditional spinning animator for buffering status
             val animateRotationMultiplier = rememberInfiniteTransition(label = "spin_angle")
             val spinAngle by animateRotationMultiplier.animateFloat(
                 initialValue = 0f,
@@ -685,7 +660,6 @@ fun PlayerBar(
     }
 }
 
-// Tab Switching Bottom bar
 @Composable
 fun AppBottomNav(
     activeTab: AppTab,
@@ -760,7 +734,6 @@ fun AppBottomNav(
     }
 }
 
-// Clean Empty Layout
 @Composable
 fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Column(
@@ -787,7 +760,6 @@ fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Mo
     }
 }
 
-// Individual Tab Views
 @Composable
 fun RadioTab(
     stations: List<ApiStation>,
@@ -803,17 +775,14 @@ fun RadioTab(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    // Precompute a hashed Set of favorite station URLs to enable O(1) lookups during scroll
     val favoriteUrls = remember(favorites) {
         favorites.map { it.urlResolved }.toSet()
     }
 
-    // Infinite scroll detection
     val shouldLoadMore = remember {
         derivedStateOf {
             val totalItemsCount = listState.layoutInfo.totalItemsCount
             val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            // Trigger load-more when scrolled 80% through the loaded list
             totalItemsCount > 0 && lastVisibleItemIndex >= (totalItemsCount - 10)
         }
     }
@@ -830,27 +799,30 @@ fun RadioTab(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            item {
+            item(contentType = "header") {
                 SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
             }
 
             if (stations.isEmpty() && !isLoading) {
-                item {
+                item(contentType = "empty_placeholder") {
                     EmptyPlaceholder(
                         message = stringLoc("nothing_found"),
                         icon = Icons.Default.SearchOff
                     )
                 }
             } else {
-                items(stations, key = { it.url_resolved }) { station ->
+                items(
+                    items = stations,
+                    key = { it.url_resolved },
+                    contentType = { "station_card" }
+                ) { station ->
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favoriteUrls.contains(station.url_resolved)
 
-                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
-                    val onSelectLambda = remember(station.url_resolved) {
+                    val onSelectLambda = remember(station) {
                         { onStationSelect(station) }
                     }
-                    val onToggleFavLambda = remember(station.url_resolved) {
+                    val onToggleFavLambda = remember(station) {
                         { onToggleFavorite(station) }
                     }
 
@@ -867,7 +839,7 @@ fun RadioTab(
                 }
 
                 if (isLoading) {
-                    item {
+                    item(contentType = "loading_indicator") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -884,7 +856,6 @@ fun RadioTab(
             }
         }
 
-        // Scroll to Top FAB Button overlay
         val isScrollBtnVisible by remember {
             derivedStateOf { listState.firstVisibleItemIndex > 4 }
         }
@@ -924,18 +895,21 @@ fun FavoritesTab(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item {
+                item(contentType = "header") {
                     SectionHeader(title = stringLoc("tab_favorites"), icon = Icons.Default.Favorite)
                 }
 
-                items(favorites, key = { it.urlResolved }) { station ->
+                items(
+                    items = favorites,
+                    key = { it.urlResolved },
+                    contentType = { "station_card" }
+                ) { station ->
                     val isActive = activeUrl == station.urlResolved
 
-                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
-                    val onSelectLambda = remember(station.urlResolved) {
+                    val onSelectLambda = remember(station) {
                         { onStationSelect(station) }
                     }
-                    val onToggleFavLambda = remember(station.urlResolved) {
+                    val onToggleFavLambda = remember(station) {
                         { onToggleFavorite(station) }
                     }
 
@@ -952,7 +926,6 @@ fun FavoritesTab(
                 }
             }
 
-            // Scroll to Top FAB Button overlay
             val isScrollBtnVisible by remember {
                 derivedStateOf { listState.firstVisibleItemIndex > 4 }
             }
@@ -1109,7 +1082,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         )
     }
 
-    // Cache translated option labels to completely eliminate GC overhead and calculations during frame rendering
     val currentLang = LocalLanguageSetting.current
     val translatedLanguageOptions = remember(currentLang) {
         languageOptions.map { (opt, labelKey, hintKey) ->
@@ -1128,12 +1100,11 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.fillMaxSize()
     ) {
-        item {
+        item(contentType = "header") {
             SectionHeader(title = stringLoc("tab_settings"), icon = Icons.Default.Settings)
         }
 
-        // Language settings
-        item {
+        item(contentType = "option_card") {
             SettingsOptionCard(
                 title = stringLoc("setting_language"),
                 options = translatedLanguageOptions,
@@ -1142,8 +1113,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
             )
         }
 
-        // Theme settings
-        item {
+        item(contentType = "option_card") {
             SettingsOptionCard(
                 title = stringLoc("setting_theme"),
                 options = translatedThemeOptions,
@@ -1152,8 +1122,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
             )
         }
 
-        // About section
-        item {
+        item(contentType = "about_card") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1163,7 +1132,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Large About Icon Header
                 Icon(
                     imageVector = Icons.Default.Radio,
                     contentDescription = null,
@@ -1196,7 +1164,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Follow Author title
                 Text(
                     text = stringLoc("socials_heading").uppercase(),
                     fontSize = 11.sp,
@@ -1208,7 +1175,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
 
-                // Social platforms list
                 SocialLinkRow(
                     title = "Telegram",
                     handle = "@OFFpolice",
@@ -1249,7 +1215,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Dev API URL element
                 Text(
                     text = stringLoc("link_dev_api"),
                     color = PrimaryPink,

@@ -15,11 +15,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.*
 import com.example.ui.theme.*
@@ -27,7 +25,12 @@ import com.example.ui.theme.*
 class MainActivity : ComponentActivity() {
 
     override fun attachBaseContext(newBase: Context?) {
-        super.attachBaseContext(newBase)
+        if (newBase != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val attributionContext = newBase.createAttributionContext("webradio")
+            super.attachBaseContext(attributionContext)
+        } else {
+            super.attachBaseContext(newBase)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +38,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            // Initialize the ViewModel using the custom factory
             val viewModel: RadioViewModel by viewModels {
                 RadioViewModel.Factory(application)
             }
@@ -89,13 +91,10 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
 
-    // Player state management flows
     val currentUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
     val currentName by viewModel.playerManager.currentName.collectAsStateWithLifecycle()
-    val currentFavicon by viewModel.playerManager.currentFavicon.collectAsStateWithLifecycle()
     val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
 
-    // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
     if (activeTab != AppTab.RADIO) {
         BackHandler {
             viewModel.selectTab(AppTab.RADIO)
