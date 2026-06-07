@@ -1,0 +1,1016 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_bg">
+
+    <!-- LAYER 1: Main Application UI -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main_content_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Header / Toolbar: AppHeader -->
+        <LinearLayout
+            android:id="@+id/app_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/card_bg"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/app_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="WebRadioBot"
+                android:textColor="@color/primary_pink"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+
+            <!-- Search layout (visible in Radio tab only) -->
+            <LinearLayout
+                android:id="@+id/search_bar_container"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_search_input"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_search"
+                    android:contentDescription="Search Icon"
+                    app:tint="@color/text_secondary" />
+
+                <EditText
+                    android:id="@+id/search_input"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:background="@null"
+                    android:hint="Search stations..."
+                    android:textColorHint="@color/text_secondary"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:singleLine="true"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:imeOptions="actionSearch" />
+
+                <FrameLayout
+                    android:id="@+id/search_clear_btn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true">
+                    
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_close"
+                        android:contentDescription="Clear search icon"
+                        app:tint="@color/text_secondary" />
+                </FrameLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Dynamic Sheets / Container Area -->
+        <FrameLayout
+            android:id="@+id/sheets_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/app_header"
+            app:layout_constraintBottom_toTopOf="@id/player_bar_bottom">
+
+            <!-- TAB 1: Radio Stations Tab -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/tab_radio_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="visible">
+
+                <!-- Section Header -->
+                <LinearLayout
+                    android:id="@+id/radio_section_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_radio"
+                        android:contentDescription="Radio Section icon"
+                        app:tint="@color/secondary_pink" />
+
+                    <TextView
+                        android:id="@+id/radio_section_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="ALL RADIO STATIONS"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/radio_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:paddingHorizontal="12dp"
+                    android:clipToPadding="false"
+                    app:layout_constraintTop_toBottomOf="@id/radio_section_header"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <!-- Bottom list Loading progress bar -->
+                <ProgressBar
+                    android:id="@+id/radio_pagination_loader"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    android:theme="@style/Widget.AppCompat.ProgressBar"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Scroll to Top radio FAB -->
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/scroll_to_top_radio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="20dp"
+                    android:src="@drawable/ic_arrow_up"
+                    android:contentDescription="Scroll to top"
+                    app:tint="@color/white"
+                    app:backgroundTint="@color/secondary_pink"
+                    app:fabSize="normal"
+                    app:maxImageSize="28dp"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Empty state placeholder -->
+                <LinearLayout
+                    android:id="@+id/radio_empty_placeholder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="80dp"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔍"
+                        android:textSize="48sp" />
+
+                    <TextView
+                        android:id="@+id/radio_empty_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Nothing found"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="15sp"
+                        android:textStyle="normal"
+                        android:gravity="center" />
+                </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- TAB 2: Favorites tab -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/tab_favorites_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone">
+
+                <!-- Section Header -->
+                <LinearLayout
+                    android:id="@+id/fav_section_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_favorite"
+                        android:contentDescription="Favorites icon"
+                        app:tint="@color/secondary_pink" />
+
+                    <TextView
+                        android:id="@+id/fav_section_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="FAVORITES"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/fav_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:paddingHorizontal="12dp"
+                    android:clipToPadding="false"
+                    app:layout_constraintTop_toBottomOf="@id/fav_section_header"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <!-- Scroll to Top fav FAB -->
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/scroll_to_top_fav"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="20dp"
+                    android:src="@drawable/ic_arrow_up"
+                    android:contentDescription="Scroll to top"
+                    app:tint="@color/white"
+                    app:backgroundTint="@color/secondary_pink"
+                    app:fabSize="normal"
+                    app:maxImageSize="28dp"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Empty state placeholder -->
+                <LinearLayout
+                    android:id="@+id/fav_empty_placeholder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="80dp"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <ImageView
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:src="@drawable/ic_favorite_border"
+                        app:tint="@color/text_muted"
+                        android:contentDescription="Empty favorites icon" />
+
+                    <TextView
+                        android:id="@+id/fav_empty_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="No favorite stations"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="15sp"
+                        android:textStyle="normal"
+                        android:gravity="center" />
+                </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- TAB 3: Settings Tab -->
+            <ScrollView
+                android:id="@+id/tab_settings_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingBottom="12dp">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_settings"
+                            android:contentDescription="Settings Section icon"
+                            app:tint="@color/secondary_pink" />
+
+                        <TextView
+                            android:id="@+id/settings_section_title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="SETTINGS"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05" />
+                    </LinearLayout>
+
+                    <!-- Card 1: Localization -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardBackgroundColor="@color/card_bg"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/border_color">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:id="@+id/setting_language_title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Language"
+                                android:textColor="@color/primary_pink"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:paddingBottom="12dp" />
+
+                            <RadioGroup
+                                android:id="@+id/lang_radio_group"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical">
+
+                                <!-- Programmatically inflated choices or static styled options -->
+                                <RadioButton
+                                    android:id="@+id/lang_auto"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Auto-detect"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+
+                                <RadioButton
+                                    android:id="@+id/lang_en"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="English"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+
+                                <RadioButton
+                                    android:id="@+id/lang_ru"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Russian"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+
+                                <RadioButton
+                                    android:id="@+id/lang_uk"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Ukrainian"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+                            </RadioGroup>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Card 2: Theme Settings -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardBackgroundColor="@color/card_bg"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/border_color">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:id="@+id/setting_theme_title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Theme"
+                                android:textColor="@color/primary_pink"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:paddingBottom="12dp" />
+
+                            <RadioGroup
+                                android:id="@+id/theme_radio_group"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical">
+
+                                <RadioButton
+                                    android:id="@+id/theme_system"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="System"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+
+                                <RadioButton
+                                    android:id="@+id/theme_light"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Light"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+
+                                <RadioButton
+                                    android:id="@+id/theme_dark"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Dark"
+                                    android:textColor="@color/text_primary"
+                                    android:paddingLeft="12dp"
+                                    android:paddingVertical="12dp"
+                                    android:buttonTint="@color/primary_pink" />
+                            </RadioGroup>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Card 3: About App & Socials -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardBackgroundColor="@color/card_bg"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/border_color">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:gravity="center_horizontal"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:src="@drawable/ic_radio"
+                                android:paddingBottom="8dp"
+                                app:tint="@color/secondary_pink"
+                                android:contentDescription="WebRadioBot" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="WebRadioBot"
+                                android:textColor="@color/text_primary"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/settings_about_desc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:gravity="center"
+                                android:lineSpacingExtra="4dp"
+                                android:text="Listen to thousands of radio stations from all over the world. Add your favorites for quick access."
+                                android:textColor="@color/text_secondary"
+                                android:textSize="13sp" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:layout_marginVertical="16dp"
+                                android:background="@color/border_color" />
+
+                            <TextView
+                                android:id="@+id/settings_socials_heading"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="USEFUL LINKS"
+                                android:textColor="@color/primary_pink"
+                                android:textSize="11dp"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.1"
+                                android:paddingHorizontal="8dp"
+                                android:paddingBottom="4dp" />
+
+                            <!-- Social Item 1: Telegram -->
+                            <LinearLayout
+                                android:id="@+id/social_telegram"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?android:attr/selectableItemBackground"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="12dp">
+
+                                <FrameLayout
+                                    android:layout_width="36dp"
+                                    android:layout_height="36dp"
+                                    android:background="@drawable/bg_social_circle">
+                                    <ImageView
+                                        android:layout_width="18dp"
+                                        android:layout_height="18dp"
+                                        android:layout_gravity="center"
+                                        android:src="@drawable/ic_telegram"
+                                        app:tint="@color/primary_pink"
+                                        android:contentDescription="Telegram logo" />
+                                </FrameLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="12dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Telegram"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@OFFpolice"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@drawable/ic_launch"
+                                    app:tint="@color/text_muted"
+                                    android:contentDescription="Launch Link" />
+                            </LinearLayout>
+
+                            <!-- Social Item 2: X (Twitter) -->
+                            <LinearLayout
+                                android:id="@+id/social_x"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?android:attr/selectableItemBackground"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="12dp">
+
+                                <FrameLayout
+                                    android:layout_width="36dp"
+                                    android:layout_height="36dp"
+                                    android:background="@drawable/bg_social_circle">
+                                    <ImageView
+                                        android:layout_width="18dp"
+                                        android:layout_height="18dp"
+                                        android:layout_gravity="center"
+                                        android:src="@drawable/ic_x"
+                                        app:tint="@color/primary_pink"
+                                        android:contentDescription="X logo" />
+                                </FrameLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="12dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="X (Twitter)"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@OFFpolice2077"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@drawable/ic_launch"
+                                    app:tint="@color/text_muted"
+                                    android:contentDescription="Launch Link" />
+                            </LinearLayout>
+
+                            <!-- Social Item 3: Instagram -->
+                            <LinearLayout
+                                android:id="@+id/social_instagram"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?android:attr/selectableItemBackground"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="12dp">
+
+                                <FrameLayout
+                                    android:layout_width="36dp"
+                                    android:layout_height="36dp"
+                                    android:background="@drawable/bg_social_circle">
+                                    <ImageView
+                                        android:layout_width="18dp"
+                                        android:layout_height="18dp"
+                                        android:layout_gravity="center"
+                                        android:src="@drawable/ic_instagram"
+                                        app:tint="@color/primary_pink"
+                                        android:contentDescription="Instagram logo" />
+                                </FrameLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="12dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Instagram"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@offpolice2077"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@drawable/ic_launch"
+                                    app:tint="@color/text_muted"
+                                    android:contentDescription="Launch Link" />
+                            </LinearLayout>
+
+                            <!-- Social Item 4: WebRadioBot -->
+                            <LinearLayout
+                                android:id="@+id/social_bot"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?android:attr/selectableItemBackground"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="12dp">
+
+                                <FrameLayout
+                                    android:layout_width="36dp"
+                                    android:layout_height="36dp"
+                                    android:background="@drawable/bg_social_circle">
+                                    <ImageView
+                                        android:layout_width="18dp"
+                                        android:layout_height="18dp"
+                                        android:layout_gravity="center"
+                                        android:src="@drawable/ic_telegram"
+                                        app:tint="@color/primary_pink"
+                                        android:contentDescription="Telegram bot logo" />
+                                </FrameLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="12dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="WebRadioBot"
+                                        android:textColor="@color/text_primary"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="t.me/Web_radio_bot/app"
+                                        android:textColor="@color/text_secondary"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@drawable/ic_launch"
+                                    app:tint="@color/text_muted"
+                                    android:contentDescription="Launch Link" />
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:layout_marginVertical="12dp"
+                                android:background="@color/border_color" />
+
+                            <TextView
+                                android:id="@+id/developer_api_btn"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?android:attr/selectableItemBackground"
+                                android:text="API for Developers!"
+                                android:textColor="@color/primary_pink"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:paddingHorizontal="16dp"
+                                android:paddingVertical="8dp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+            </ScrollView>
+        </FrameLayout>
+
+        <!-- Player Bar component at the bottom -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/player_bar_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/card_bg"
+            app:layout_constraintBottom_toTopOf="@id/bottom_navigation">
+
+            <!-- Top elegant border line -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/border_color"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Play Toggle circle Button -->
+            <FrameLayout
+                android:id="@+id/play_toggle_btn"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="@drawable/bg_circle_play"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent">
+
+                <ImageView
+                    android:id="@+id/play_toggle_icon"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_play"
+                    android:contentDescription="Play Toggle Controls"
+                    app:tint="@color/white" />
+            </FrameLayout>
+
+            <!-- Marquee scrolling station title -->
+            <TextView
+                android:id="@+id/playing_station_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
+                android:scrollHorizontally="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:text="Select a station"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/play_toggle_btn"
+                app:layout_constraintEnd_toStartOf="@id/status_layout" />
+
+            <!-- Playing state badge status: right centered -->
+            <LinearLayout
+                android:id="@+id/status_layout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <ImageView
+                    android:id="@+id/status_indicator_icon"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_volume_up"
+                    android:contentDescription="Status indicator"
+                    app:tint="@color/text_secondary" />
+
+                <TextView
+                    android:id="@+id/status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Idle"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Bottom Navigation component -->
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottom_navigation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/card_bg"
+            app:menu="@menu/bottom_nav_menu"
+            app:itemIconTint="@color/nav_item_tint"
+            app:itemTextColor="@color/nav_item_tint"
+            app:elevation="8dp"
+            app:labelVisibilityMode="labeled"
+            app:layout_constraintBottom_toBottomOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- LAYER 2: Intro / Full Screen Loader overlay -->
+    <FrameLayout
+        android:id="@+id/fullscreen_loading_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="@color/app_bg"
+        android:elevation="12dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <FrameLayout
+                android:layout_width="150dp"
+                android:layout_height="150dp"
+                android:layout_gravity="center"
+                android:padding="12dp">
+
+                <!-- Programmatic Infinite pulse circles -->
+                <com.example.ui.PulseLoaderView
+                    android:id="@+id/pulse_loader_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <!-- Inner static radio brand circles -->
+                <FrameLayout
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_intro_inner_circle">
+
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_radio"
+                        app:tint="@color/white"
+                        android:contentDescription="Radio Logo Icon" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <Spacer
+                android:layout_width="match_parent"
+                android:layout_height="28dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="WebRadioBot"
+                android:textColor="@color/primary_pink"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <Spacer
+                android:layout_width="match_parent"
+                android:layout_height="4dp" />
+
+            <TextView
+                android:id="@+id/loading_tagline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Thousands of stations from around the world"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:textStyle="normal"
+                android:gravity="center" />
+
+            <Spacer
+                android:layout_width="match_parent"
+                android:layout_height="32dp" />
+
+            <!-- Custom Horizontal Progress Bar container -->
+            <FrameLayout
+                android:layout_width="200dp"
+                android:layout_height="4dp">
+
+                <!-- Progress track background -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_progress_track" />
+
+                <!-- Animated dynamic core horizontal loader -->
+                <View
+                    android:id="@+id/loading_progress_bar"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_progress_fill" />
+            </FrameLayout>
+
+            <Spacer
+                android:layout_width="match_parent"
+                android:layout_height="12dp" />
+
+            <TextView
+                android:id="@+id/loading_status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Initializing..."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

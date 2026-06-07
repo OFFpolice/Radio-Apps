@@ -1,9 +1,5 @@
 package com.example.ui
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.compositionLocalOf
-
 enum class AppLanguageSetting {
     AUTO,
     EN,
@@ -165,12 +161,4 @@ object Loc {
         }
         return lang[key] ?: en[key] ?: key
     }
-}
-
-val LocalLanguageSetting = compositionLocalOf { AppLanguageSetting.AUTO }
-
-@Composable
-@ReadOnlyComposable
-fun stringLoc(key: String): String {
-    return Loc.get(key, LocalLanguageSetting.current)
 }

@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar" />
+    <style name="Theme.MyApplication" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/secondary_pink</item>
+        <item name="colorPrimaryDark">@color/secondary_pink</item>
+        <item name="colorAccent">@color/primary_pink</item>
+        <item name="android:windowBackground">@color/app_bg</item>
+        <item name="android:statusBarColor">@color/card_bg</item>
+        <item name="android:navigationBarColor">@color/card_bg</item>
+    </style>
 </resources>
