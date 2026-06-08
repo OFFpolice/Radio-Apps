@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Semantic Theme Colors (Dark Override) -->
+    <color name="app_bg">#121212</color>
+    <color name="app_card_bg">#1E1E1E</color>
+    <color name="app_search_bg">#2C2C2C</color>
+    <color name="app_active_card_bg">#26C2185B</color>
+    <color name="app_text_primary">#FFFFFF</color>
+    <color name="app_text_secondary">#B0B0B0</color>
+    <color name="app_text_muted">#666666</color>
+</resources>
