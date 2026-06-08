@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.ApiStation
 import com.example.data.FavoriteStation
 import com.example.data.RadioRepository
+import com.example.player.PlaybackState
 import com.example.player.RadioPlayerManager
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -86,7 +87,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private val _apiError = MutableStateFlow<String?>(null)
     val apiError: StateFlow<String?> = _apiError.asStateFlow()
 
-    private val _connectionProgress = MutableStateFlow(10)
+    private val _connectionProgress = MutableStateFlow(10) // 0-100%
     val connectionProgress: StateFlow<Int> = _connectionProgress.asStateFlow()
 
     private val _connectionState = MutableStateFlow(ConnectionState.INITIALIZING)
@@ -96,10 +97,11 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
 
     private var offset = 0
-    private val LIMIT = 25
+    private val LIMIT = 100
     private var searchJob: Job? = null
 
     init {
+        // Run setup connection
         viewModelScope.launch {
             _isConnecting.value = true
             _connectionProgress.value = 15
@@ -114,6 +116,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             _connectionProgress.value = 80
             _connectionState.value = ConnectionState.GETTING_STATIONS
 
+            // Pre-load initial stations list
             fetchStations(reset = true, query = "")
 
             _connectionProgress.value = 100
@@ -121,6 +124,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             delay(300)
             _isConnecting.value = false
 
+            // Restore last played station
             val lastUrl = sharedPrefs.getString("last_url", null)
             val lastName = sharedPrefs.getString("last_name", null)
             val lastFavicon = sharedPrefs.getString("last_favicon", null)
@@ -134,6 +138,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             }
         }
 
+        // Setup debounced search query emission
         viewModelScope.launch {
             _searchQuery
                 .debounce(500)
@@ -147,7 +152,6 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
 
     fun selectTab(tab: AppTab) {
         _activeTab.value = tab
-        _searchQuery.value = ""
     }
 
     fun updateSearchQuery(query: String) {
@@ -169,24 +173,23 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             try {
-                val (newStations, rawCount, hasMoreResults) = withContext(Dispatchers.Default) {
+                val processed = withContext(Dispatchers.Default) {
                     val results = repository.searchStations(query, LIMIT, offset)
                     val validResults = results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
 
-                    val mergedList = if (reset) {
-                        validResults.distinctBy { it.url_resolved }
+                    if (reset) {
+                        Pair(validResults.distinctBy { it.url_resolved }, validResults.size)
                     } else {
                         val currentList = _stations.value
                         val existingUrls = currentList.map { it.url_resolved }.toSet()
                         val newUniqueResults = validResults.filter { !existingUrls.contains(it.url_resolved) }
-                        currentList + newUniqueResults
+                        Pair(currentList + newUniqueResults, validResults.size)
                     }
-                    Triple(mergedList, results.size, results.size == LIMIT)
                 }
 
-                _stations.value = newStations
-                offset += rawCount
-                _hasMore.value = hasMoreResults
+                _stations.value = processed.first
+                offset += processed.second
+                _hasMore.value = processed.second == LIMIT
             } catch (e: Exception) {
                 e.printStackTrace()
                 _apiError.value = "Ошибка сети при загрузке станций"
@@ -199,6 +202,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     fun selectStation(url: String, name: String, favicon: String?) {
         playerManager.play(url, name, favicon)
 
+        // Save last played
         sharedPrefs.edit()
             .putString("last_url", url)
             .putString("last_name", name)
@@ -226,6 +230,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         playerManager.release()
     }
 
+    // Custom Factory for the ViewModel
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(RadioViewModel::class.java)) {

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,7 +27,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -40,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import coil.request.CachePolicy
 import com.example.data.ApiStation
 import com.example.data.FavoriteStation
 import com.example.player.PlaybackState
@@ -48,6 +48,7 @@ import com.example.ui.theme.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
+// Full screen loaders representing loadingScreen element from user code
 @Composable
 fun FullScreenLoadingScreen(
     progress: Float,
@@ -65,6 +66,7 @@ fun FullScreenLoadingScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(24.dp)
         ) {
+            // Animated concentric pulsing rings
             Box(
                 modifier = Modifier
                     .size(150.dp)
@@ -113,8 +115,13 @@ fun FullScreenLoadingScreen(
                 textAlign = TextAlign.Center
             )
 
+            Spacer(modifier = Modifier.height(40.dp))
+
+            EqualizerAnimation()
+
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Progress bar
             Box(
                 modifier = Modifier
                     .width(200.dp)
@@ -196,11 +203,13 @@ fun LoaderPulseAnimation() {
         modifier = Modifier
             .fillMaxSize()
             .drawBehind {
+                // Ring 1
                 drawCircle(
                     color = PrimaryPink.copy(alpha = pulseOpacity1),
                     radius = (size.minDimension / 2f) * pulseScale1,
                     style = Stroke(width = 2.dp.toPx())
                 )
+                // Staggered Ring 2 (outer)
                 drawCircle(
                     color = PrimaryPink.copy(alpha = pulseOpacity2 * 0.5f),
                     radius = (size.minDimension / 2f) * pulseScale2 * 1.2f,
@@ -210,6 +219,92 @@ fun LoaderPulseAnimation() {
     )
 }
 
+// Dancing Equalizer bar animations
+@Composable
+fun EqualizerAnimation(modifier: Modifier = Modifier, count: Int = 7) {
+    Row(
+        modifier = modifier.height(28.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "equalizer_pulse")
+
+        val animTimes = listOf(0.4f, 0.7f, 0.5f, 0.9f, 0.3f, 0.6f, 0.5f)
+
+        for (i in 0 until count) {
+            val ratio by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 1.0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = (1000 * animTimes[i % animTimes.size]).toInt(),
+                        easing = FastOutSlowInEasing
+                    ),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "eq_bar_$i"
+            )
+
+            Box(
+                modifier = Modifier
+                    .width(5.dp)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleY = ratio
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                    }
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(SecondaryPink, LightPink)
+                        )
+                    )
+            )
+        }
+    }
+}
+
+// Compact persistent track bar inside the list
+@Composable
+fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.height(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "compact_eq")
+        val animTimes = listOf(0.3f, 0.6f, 0.4f, 0.5f)
+
+        for (i in 0 until 4) {
+            val ratio by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 1.0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = (500 * animTimes[i % animTimes.size]).toInt(),
+                        easing = FastOutSlowInEasing
+                    ),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "comp_eq_bar_$i"
+            )
+
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleY = ratio
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                    }
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(PrimaryPink)
+            )
+        }
+    }
+}
+
+// Scroll to top button which animates visibility
 @Composable
 fun ScrollToTopButton(
     visible: Boolean,
@@ -240,6 +335,7 @@ fun ScrollToTopButton(
     }
 }
 
+// Main Top App bar
 @Composable
 fun AppHeader(
     searchQuery: String,
@@ -249,6 +345,7 @@ fun AppHeader(
 ) {
     val focusManager = LocalFocusManager.current
 
+    // Reactively clear focus and hide keyboard if search is cleared
     LaunchedEffect(searchQuery) {
         if (searchQuery.isEmpty()) {
             focusManager.clearFocus()
@@ -321,6 +418,7 @@ fun AppHeader(
     }
 }
 
+// Quick fallback basic textfield placeholder implementation
 @Composable
 fun BasicTextField2_Placeholder(
     value: String,
@@ -351,6 +449,7 @@ fun BasicTextField2_Placeholder(
     }
 }
 
+// Section title mimicking .section-title class
 @Composable
 fun SectionHeader(
     title: String,
@@ -381,6 +480,7 @@ fun SectionHeader(
     }
 }
 
+// Station list item layout with high-fidelity visuals
 @Composable
 fun StationCard(
     name: String,
@@ -394,6 +494,27 @@ fun StationCard(
     modifier: Modifier = Modifier
 ) {
     val cardBackground = if (isActive) ActiveCardBg else CardBg
+    val borderBrush = if (isActive) {
+        val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
+        val alpha by infiniteTransition.animateFloat(
+            initialValue = 0.2f,
+            targetValue = 0.7f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulse_alpha"
+        )
+        Brush.linearGradient(
+            colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
+        )
+    } else {
+        remember {
+            Brush.linearGradient(
+                colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
+            )
+        }
+    }
 
     Row(
         modifier = modifier
@@ -401,25 +522,22 @@ fun StationCard(
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(cardBackground)
+            .border(
+                width = 1.dp,
+                brush = borderBrush,
+                shape = RoundedCornerShape(16.dp)
+            )
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
             .testTag("station_card_${urlResolved.hashCode()}"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val isLightTheme = !isSystemInDarkTheme()
-        val fallbackIconTint = if (isLightTheme) Color.White else SecondaryPink
-
+        // Cover Art Container
         Box(
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .then(
-                    if (isLightTheme) {
-                        Modifier.background(Brush.linearGradient(colors = listOf(LightPink, PrimaryPink)))
-                    } else {
-                        Modifier.background(SearchBg)
-                    }
-                ),
+                .background(SearchBg),
             contentAlignment = Alignment.Center
         ) {
             if (!faviconUrl.isNullOrBlank()) {
@@ -428,7 +546,7 @@ fun StationCard(
                     Icon(
                         imageVector = Icons.Default.Radio,
                         contentDescription = "Standard Fallback Radio Cover Icon",
-                        tint = fallbackIconTint,
+                        tint = SecondaryPink,
                         modifier = Modifier.size(28.dp)
                     )
                 } else {
@@ -437,8 +555,6 @@ fun StationCard(
                         ImageRequest.Builder(context)
                             .data(faviconUrl)
                             .crossfade(true)
-                            .memoryCachePolicy(CachePolicy.ENABLED)
-                            .diskCachePolicy(CachePolicy.ENABLED)
                             .build()
                     }
                     AsyncImage(
@@ -453,7 +569,7 @@ fun StationCard(
                 Icon(
                     imageVector = Icons.Default.Radio,
                     contentDescription = "Standard Fallback Radio Cover Icon",
-                    tint = fallbackIconTint,
+                    tint = SecondaryPink,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -461,6 +577,7 @@ fun StationCard(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        // Station Details Info
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -474,10 +591,15 @@ fun StationCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
+                if (isActive) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    CompactEqualizerAnimation()
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // Badges / Tags row (Optimized using remember for string splitting operations)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -497,6 +619,7 @@ fun StationCard(
 
         Spacer(modifier = Modifier.width(8.dp))
 
+        // Favorite Toggle button
         IconButton(
             onClick = onToggleFavorite,
             modifier = Modifier
@@ -534,6 +657,7 @@ fun TagChip(text: String, isActive: Boolean) {
     }
 }
 
+// Universal Persistent Player control block at the bottom of the Screen
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerBar(
@@ -560,6 +684,7 @@ fun PlayerBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Large Play Button
         Button(
             onClick = onPlayToggle,
             colors = ButtonDefaults.buttonColors(
@@ -583,6 +708,7 @@ fun PlayerBar(
             )
         }
 
+        // Running track name (marquee!)
         Text(
             text = currentName ?: stringLoc("select_station"),
             modifier = Modifier
@@ -597,16 +723,17 @@ fun PlayerBar(
             maxLines = 1
         )
 
+        // Status Area Indicator
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.wrapContentWidth()
         ) {
             val statusColor = when (playbackState) {
-                PlaybackState.PLAYING -> Color(0xFF4CAF50)
+                PlaybackState.PLAYING -> Color(0xFF4CAF50) // Green
                 PlaybackState.BUFFERING -> LightPink
-                PlaybackState.PAUSED -> Color(0xFFFFA000)
-                PlaybackState.ERROR -> Color(0xFFF44336)
+                PlaybackState.PAUSED -> Color(0xFFFFA000) // Orange
+                PlaybackState.ERROR -> Color(0xFFF44336) // Red
                 PlaybackState.IDLE -> TextSecondary
             }
 
@@ -626,6 +753,7 @@ fun PlayerBar(
                 PlaybackState.IDLE -> Icons.Default.Circle
             }
 
+            // Simple conditional spinning animator for buffering status
             val animateRotationMultiplier = rememberInfiniteTransition(label = "spin_angle")
             val spinAngle by animateRotationMultiplier.animateFloat(
                 initialValue = 0f,
@@ -643,9 +771,10 @@ fun PlayerBar(
                 tint = statusColor,
                 modifier = Modifier
                     .size(16.dp)
-                    .graphicsLayer {
+                    .drawBehind {
                         if (playbackState == PlaybackState.BUFFERING) {
-                            rotationZ = spinAngle
+                            // Apply custom rotation visually via Modifier or raw canvas rotation if needed.
+                            // We will simply let compose handle the rotation easily or keep static icon.
                         }
                     }
             )
@@ -660,6 +789,7 @@ fun PlayerBar(
     }
 }
 
+// Tab Switching Bottom bar
 @Composable
 fun AppBottomNav(
     activeTab: AppTab,
@@ -734,6 +864,7 @@ fun AppBottomNav(
     }
 }
 
+// Clean Empty Layout
 @Composable
 fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Column(
@@ -760,6 +891,7 @@ fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Mo
     }
 }
 
+// Individual Tab Views
 @Composable
 fun RadioTab(
     stations: List<ApiStation>,
@@ -775,14 +907,17 @@ fun RadioTab(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    // Precompute a hashed Set of favorite station URLs to enable O(1) lookups during scroll
     val favoriteUrls = remember(favorites) {
         favorites.map { it.urlResolved }.toSet()
     }
 
+    // Infinite scroll detection
     val shouldLoadMore = remember {
         derivedStateOf {
             val totalItemsCount = listState.layoutInfo.totalItemsCount
             val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            // Trigger load-more when scrolled 80% through the loaded list
             totalItemsCount > 0 && lastVisibleItemIndex >= (totalItemsCount - 10)
         }
     }
@@ -799,30 +934,27 @@ fun RadioTab(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            item(contentType = "header") {
+            item {
                 SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
             }
 
             if (stations.isEmpty() && !isLoading) {
-                item(contentType = "empty_placeholder") {
+                item {
                     EmptyPlaceholder(
                         message = stringLoc("nothing_found"),
                         icon = Icons.Default.SearchOff
                     )
                 }
             } else {
-                items(
-                    items = stations,
-                    key = { it.url_resolved },
-                    contentType = { "station_card" }
-                ) { station ->
+                items(stations, key = { it.url_resolved }) { station ->
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favoriteUrls.contains(station.url_resolved)
 
-                    val onSelectLambda = remember(station) {
+                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
+                    val onSelectLambda = remember(station.url_resolved) {
                         { onStationSelect(station) }
                     }
-                    val onToggleFavLambda = remember(station) {
+                    val onToggleFavLambda = remember(station.url_resolved) {
                         { onToggleFavorite(station) }
                     }
 
@@ -839,7 +971,7 @@ fun RadioTab(
                 }
 
                 if (isLoading) {
-                    item(contentType = "loading_indicator") {
+                    item {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -856,6 +988,7 @@ fun RadioTab(
             }
         }
 
+        // Scroll to Top FAB Button overlay
         val isScrollBtnVisible by remember {
             derivedStateOf { listState.firstVisibleItemIndex > 4 }
         }
@@ -895,21 +1028,18 @@ fun FavoritesTab(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item(contentType = "header") {
+                item {
                     SectionHeader(title = stringLoc("tab_favorites"), icon = Icons.Default.Favorite)
                 }
 
-                items(
-                    items = favorites,
-                    key = { it.urlResolved },
-                    contentType = { "station_card" }
-                ) { station ->
+                items(favorites, key = { it.urlResolved }) { station ->
                     val isActive = activeUrl == station.urlResolved
 
-                    val onSelectLambda = remember(station) {
+                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
+                    val onSelectLambda = remember(station.urlResolved) {
                         { onStationSelect(station) }
                     }
-                    val onToggleFavLambda = remember(station) {
+                    val onToggleFavLambda = remember(station.urlResolved) {
                         { onToggleFavorite(station) }
                     }
 
@@ -926,6 +1056,7 @@ fun FavoritesTab(
                 }
             }
 
+            // Scroll to Top FAB Button overlay
             val isScrollBtnVisible by remember {
                 derivedStateOf { listState.firstVisibleItemIndex > 4 }
             }
@@ -1082,47 +1213,41 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         )
     }
 
-    val currentLang = LocalLanguageSetting.current
-    val translatedLanguageOptions = remember(currentLang) {
-        languageOptions.map { (opt, labelKey, hintKey) ->
-            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
-        }
-    }
-
-    val translatedThemeOptions = remember(currentLang) {
-        themeOptions.map { (opt, labelKey, hintKey) ->
-            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
-        }
-    }
-
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.fillMaxSize()
     ) {
-        item(contentType = "header") {
+        item {
             SectionHeader(title = stringLoc("tab_settings"), icon = Icons.Default.Settings)
         }
 
-        item(contentType = "option_card") {
+        // Language settings
+        item {
             SettingsOptionCard(
                 title = stringLoc("setting_language"),
-                options = translatedLanguageOptions,
+                options = languageOptions.map { (opt, labelKey, hintKey) ->
+                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
+                },
                 selected = languageSetting,
                 onSelect = { viewModel.setLanguageSetting(it) }
             )
         }
 
-        item(contentType = "option_card") {
+        // Theme settings
+        item {
             SettingsOptionCard(
                 title = stringLoc("setting_theme"),
-                options = translatedThemeOptions,
+                options = themeOptions.map { (opt, labelKey, hintKey) ->
+                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
+                },
                 selected = themeSetting,
                 onSelect = { viewModel.setThemeSetting(it) }
             )
         }
 
-        item(contentType = "about_card") {
+        // About section
+        item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1132,6 +1257,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Large About Icon Header
                 Icon(
                     imageVector = Icons.Default.Radio,
                     contentDescription = null,
@@ -1164,6 +1290,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Follow Author title
                 Text(
                     text = stringLoc("socials_heading").uppercase(),
                     fontSize = 11.sp,
@@ -1175,6 +1302,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
 
+                // Social platforms list
                 SocialLinkRow(
                     title = "Telegram",
                     handle = "@OFFpolice",
@@ -1215,6 +1343,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Dev API URL element
                 Text(
                     text = stringLoc("link_dev_api"),
                     color = PrimaryPink,

@@ -15,7 +15,7 @@ data class ApiStation(
     val stationuuid: String? = null,
     val name: String,
     val url: String? = null,
-    val url_resolved: String,
+    val url_resolved: String, // Clean streamed URL
     val homepage: String? = null,
     val favicon: String? = null,
     val tags: String? = null,

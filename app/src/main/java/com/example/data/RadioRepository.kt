@@ -28,9 +28,10 @@ class RadioRepository(context: Context) {
         .build()
         .create(RadioBrowserApi::class.java)
 
+    // Current resolved server for API operations
     private var resolvedServer: String = "https://de1.api.radio-browser.info"
 
-    suspend fun resolveActiveServer() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun resolveActiveServer() {
         try {
             val servers = api.getServers()
             if (servers.isNotEmpty()) {
@@ -39,12 +40,13 @@ class RadioRepository(context: Context) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            // Fallbacks automatically to "https://de1.api.radio-browser.info"
         }
     }
 
-    suspend fun searchStations(name: String?, limit: Int, offset: Int): List<ApiStation> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun searchStations(name: String?, limit: Int, offset: Int): List<ApiStation> {
         val pathUrl = "$resolvedServer/json/stations/search"
-        api.searchStations(
+        return api.searchStations(
             url = pathUrl,
             name = name?.ifBlank { null },
             limit = limit,
@@ -52,9 +54,10 @@ class RadioRepository(context: Context) {
         )
     }
 
+    // Favorites Operations
     fun getFavoritesFlow(): Flow<List<FavoriteStation>> = favoriteStationDao.getAllFavorites()
 
-    suspend fun addFavorite(urlResolved: String, name: String, tags: String?, favicon: String?) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun addFavorite(urlResolved: String, name: String, tags: String?, favicon: String?) {
         val favorite = FavoriteStation(
             urlResolved = urlResolved,
             name = name,
@@ -64,7 +67,7 @@ class RadioRepository(context: Context) {
         favoriteStationDao.insertFavorite(favorite)
     }
 
-    suspend fun removeFavoriteByUrl(urlResolved: String) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun removeFavoriteByUrl(urlResolved: String) {
         favoriteStationDao.deleteFavoriteByUrl(urlResolved)
     }
 
