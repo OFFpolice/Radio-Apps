@@ -1,20 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Core Brand Colors -->
-    <color name="primary_pink">#E91E63</color>
-    <color name="secondary_pink">#C2185B</color>
-    <color name="light_pink">#F06292</color>
-
-    <!-- Semantic Theme Colors (Light Default) -->
-    <color name="app_bg">#F5F5F7</color>
-    <color name="app_card_bg">#FFFFFF</color>
-    <color name="app_search_bg">#E2E2E5</color>
-    <color name="app_active_card_bg">#1CC2185B</color>
-    <color name="app_text_primary">#000000</color>
-    <color name="app_text_secondary">#555555</color>
-    <color name="app_text_muted">#888888</color>
-
-    <!-- Fallbacks -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

@@ -39,18 +39,8 @@ roborazzi = "1.59.0"
 firebaseBom = "34.12.0"
 secretsGradlePlugin = "2.0.1"
 media3 = "1.5.1"
-appcompat = "1.6.1"
-constraintlayout = "2.1.4"
-recyclerview = "1.3.2"
-material = "1.11.0"
-coil = "2.7.0"
 
 [libraries]
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
-google-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
-coil-default = { group = "io.coil-kt", name = "coil", version.ref = "coil" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
