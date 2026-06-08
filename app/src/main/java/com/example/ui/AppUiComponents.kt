@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
@@ -47,6 +48,22 @@ import com.example.player.PlaybackState
 import com.example.ui.theme.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+object TagsCache {
+    private val cache = ConcurrentHashMap<String, List<String>>()
+
+    fun get(tagsString: String?): List<String> {
+        if (tagsString.isNullOrBlank()) return emptyList()
+        return cache.getOrPut(tagsString) {
+            tagsString.split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .take(3)
+        }
+    }
+}
 
 @Composable
 fun FullScreenLoadingScreen(
@@ -399,7 +416,12 @@ fun StationCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .graphicsLayer {
+                // High-performance graphics layer isolation. Delegated clipping and scaling
+                // to GPU RenderNode to prevent CPU draw call re-recording bottlenecks on list scrolling.
+                clip = true
+                shape = RoundedCornerShape(16.dp)
+            }
             .background(cardBackground)
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
@@ -412,7 +434,10 @@ fun StationCard(
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .graphicsLayer {
+                    clip = true
+                    shape = RoundedCornerShape(12.dp)
+                }
                 .then(
                     if (isLightTheme) {
                         Modifier.background(Brush.linearGradient(colors = listOf(LightPink, PrimaryPink)))
@@ -436,7 +461,8 @@ fun StationCard(
                     val imageRequest = remember(faviconUrl) {
                         ImageRequest.Builder(context)
                             .data(faviconUrl)
-                            .crossfade(true)
+                            .crossfade(false)
+                            .allowHardware(true)
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .diskCachePolicy(CachePolicy.ENABLED)
                             .build()
@@ -482,9 +508,7 @@ fun StationCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val parsedTags = remember(tags) {
-                    tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.distinct()?.take(3) ?: emptyList()
-                }
+                val parsedTags = remember(tags) { TagsCache.get(tags) }
                 if (parsedTags.isNotEmpty()) {
                     parsedTags.forEach { tag ->
                         TagChip(text = tag, isActive = isActive)
@@ -763,7 +787,7 @@ fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Mo
 @Composable
 fun RadioTab(
     stations: List<ApiStation>,
-    favorites: List<FavoriteStation>,
+    favoriteUrls: Set<String>,
     activeUrl: String?,
     isLoading: Boolean,
     hasMore: Boolean,
@@ -774,24 +798,6 @@ fun RadioTab(
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-
-    val favoriteUrls = remember(favorites) {
-        favorites.map { it.urlResolved }.toSet()
-    }
-
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val totalItemsCount = listState.layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItemsCount > 0 && lastVisibleItemIndex >= (totalItemsCount - 10)
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && !isLoading && hasMore) {
-            onLoadMore()
-        }
-    }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -811,11 +817,19 @@ fun RadioTab(
                     )
                 }
             } else {
-                items(
+                itemsIndexed(
                     items = stations,
-                    key = { it.url_resolved },
-                    contentType = { "station_card" }
-                ) { station ->
+                    key = { _, station -> station.url_resolved },
+                    contentType = { _, _ -> "station_card" }
+                ) { index, station ->
+                    // Prefetch optimization: Trigger forward pagination loading when compiling
+                    // the last 6 elements of the list. Fast, non-blocking preloading.
+                    if (index >= stations.size - 6 && !isLoading && hasMore) {
+                        LaunchedEffect(stations.size) {
+                            onLoadMore()
+                        }
+                    }
+
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favoriteUrls.contains(station.url_resolved)
 
