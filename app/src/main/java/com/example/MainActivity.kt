@@ -88,7 +88,6 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val stations by viewModel.stations.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
-    val favoriteUrls by viewModel.favoriteUrls.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
 
@@ -144,7 +143,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
                 AppTab.RADIO -> {
                     RadioTab(
                         stations = stations,
-                        favoriteUrls = favoriteUrls,
+                        favorites = favorites,
                         activeUrl = currentUrl,
                         isLoading = isLoading,
                         hasMore = hasMore,
