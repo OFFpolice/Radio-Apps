@@ -46,6 +46,7 @@ import com.offpolice.webradiobot.data.FavoriteStation
 import com.offpolice.webradiobot.player.PlaybackState
 import com.offpolice.webradiobot.ui.theme.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.launch
 
 // Full screen loaders representing loadingScreen element from user code
@@ -114,10 +115,6 @@ fun FullScreenLoadingScreen(
                 color = TextSecondary,
                 textAlign = TextAlign.Center
             )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            EqualizerAnimation()
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -498,7 +495,8 @@ fun StationCard(
     isFavorite: Boolean,
     onSelect: () -> Unit,
     onToggleFavorite: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isPlaying: Boolean = false
 ) {
     val cardBackground = if (isActive) ActiveCardBg else CardBg
     val borderBrush = if (isActive) {
@@ -598,7 +596,7 @@ fun StationCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                if (isActive) {
+                if (isActive && isPlaying) {
                     Spacer(modifier = Modifier.width(6.dp))
                     CompactEqualizerAnimation()
                 }
@@ -819,6 +817,7 @@ fun AppBottomNav(
                 )
             },
             label = { Text(stringLoc("tab_radio")) },
+            alwaysShowLabel = true,
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
@@ -839,6 +838,7 @@ fun AppBottomNav(
                 )
             },
             label = { Text(stringLoc("tab_favorites")) },
+            alwaysShowLabel = true,
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
@@ -859,6 +859,7 @@ fun AppBottomNav(
                 )
             },
             label = { Text(stringLoc("tab_settings")) },
+            alwaysShowLabel = true,
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = PrimaryPink,
                 selectedTextColor = PrimaryPink,
@@ -904,6 +905,7 @@ fun RadioTab(
     stations: List<ApiStation>,
     favorites: List<FavoriteStation>,
     activeUrl: String?,
+    playbackState: PlaybackState,
     isLoading: Boolean,
     hasMore: Boolean,
     onStationSelect: (ApiStation) -> Unit,
@@ -973,7 +975,8 @@ fun RadioTab(
                         isActive = isActive,
                         isFavorite = isFav,
                         onSelect = onSelectLambda,
-                        onToggleFavorite = onToggleFavLambda
+                        onToggleFavorite = onToggleFavLambda,
+                        isPlaying = playbackState == PlaybackState.PLAYING
                     )
                 }
 
@@ -1016,6 +1019,7 @@ fun RadioTab(
 fun FavoritesTab(
     favorites: List<FavoriteStation>,
     activeUrl: String?,
+    playbackState: PlaybackState,
     onStationSelect: (FavoriteStation) -> Unit,
     onToggleFavorite: (FavoriteStation) -> Unit,
     modifier: Modifier = Modifier
@@ -1035,10 +1039,6 @@ fun FavoritesTab(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item {
-                    SectionHeader(title = stringLoc("tab_favorites"), icon = Icons.Default.Favorite)
-                }
-
                 items(favorites, key = { it.urlResolved }) { station ->
                     val isActive = activeUrl == station.urlResolved
 
@@ -1058,7 +1058,8 @@ fun FavoritesTab(
                         isActive = isActive,
                         isFavorite = true,
                         onSelect = onSelectLambda,
-                        onToggleFavorite = onToggleFavLambda
+                        onToggleFavorite = onToggleFavLambda,
+                        isPlaying = playbackState == PlaybackState.PLAYING
                     )
                 }
             }
@@ -1136,6 +1137,136 @@ fun <T> SettingsOptionCard(
                             text = subtitle,
                             fontSize = 11.sp,
                             color = TextMuted
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LanguageSelectorRow(
+    selected: AppLanguageSetting,
+    options: List<Triple<AppLanguageSetting, String, String?>>,
+    onClick: () -> Unit
+) {
+    val currentOption = options.find { it.first == selected }
+    val currentLabel = currentOption?.let { stringLoc(it.second) } ?: ""
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = stringLoc("setting_language"),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = currentLabel,
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = "Open language selection screen",
+                tint = TextSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun LanguageScreen(
+    selected: AppLanguageSetting,
+    options: List<Triple<AppLanguageSetting, String, String?>>,
+    onSelect: (AppLanguageSetting) -> Unit,
+    onBack: () -> Unit
+) {
+    BackHandler {
+        onBack()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Custom Header Bar matching Android standards & screenshot
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(vertical = 12.dp)
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+                    .testTag("language_back_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Text(
+                text = stringLoc("setting_language"),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(options) { (option, labelKey, _) ->
+                val isSelected = option == selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(CardBg)
+                        .clickable {
+                            onSelect(option)
+                        }
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringLoc(labelKey),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = PrimaryPink,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1225,19 +1356,12 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.fillMaxSize()
     ) {
-        item {
-            SectionHeader(title = stringLoc("tab_settings"), icon = Icons.Default.Settings)
-        }
-
         // Language settings
         item {
-            SettingsOptionCard(
-                title = stringLoc("setting_language"),
-                options = languageOptions.map { (opt, labelKey, hintKey) ->
-                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
-                },
+            LanguageSelectorRow(
                 selected = languageSetting,
-                onSelect = { viewModel.setLanguageSetting(it) }
+                options = languageOptions,
+                onClick = { viewModel.showLanguageScreen(true) }
             )
         }
 

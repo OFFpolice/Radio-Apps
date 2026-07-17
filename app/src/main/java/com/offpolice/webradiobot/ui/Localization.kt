@@ -64,7 +64,8 @@ object Loc {
         "state_resources" to "Loading resources...",
         "state_connecting" to "Connecting to server...",
         "state_stations" to "Fetching station list...",
-        "state_ready" to "Ready!"
+        "state_ready" to "Ready!",
+        "btn_cancel" to "Cancel"
     )
 
     private val ru = mapOf(
@@ -105,7 +106,8 @@ object Loc {
         "state_resources" to "Загрузка ресурсов...",
         "state_connecting" to "Подключение к серверу...",
         "state_stations" to "Получение списка станций...",
-        "state_ready" to "Готово!"
+        "state_ready" to "Готово!",
+        "btn_cancel" to "Отмена"
     )
 
     private val uk = mapOf(
@@ -146,7 +148,8 @@ object Loc {
         "state_resources" to "Завантаження ресурсів...",
         "state_connecting" to "Підключення до сервера...",
         "state_stations" to "Отримання списку станцій...",
-        "state_ready" to "Готово!"
+        "state_ready" to "Готово!",
+        "btn_cancel" to "Скасувати"
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {

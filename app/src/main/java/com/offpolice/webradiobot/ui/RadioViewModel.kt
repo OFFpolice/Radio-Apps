@@ -62,6 +62,13 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         sharedPrefs.edit().putString("language_setting", lang.name).apply()
     }
 
+    private val _isLanguageScreenOpen = MutableStateFlow(false)
+    val isLanguageScreenOpen: StateFlow<Boolean> = _isLanguageScreenOpen.asStateFlow()
+
+    fun showLanguageScreen(show: Boolean) {
+        _isLanguageScreenOpen.value = show
+    }
+
     private val _activeTab = MutableStateFlow(AppTab.RADIO)
     val activeTab: StateFlow<AppTab> = _activeTab.asStateFlow()
 

@@ -17,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -86,6 +88,32 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppContent(viewModel: RadioViewModel) {
+    val isLanguageScreenOpen by viewModel.isLanguageScreenOpen.collectAsStateWithLifecycle()
+
+    if (isLanguageScreenOpen) {
+        val languageOptions = remember {
+            listOf(
+                Triple(AppLanguageSetting.AUTO, "language_auto", "language_default_hint"),
+                Triple(AppLanguageSetting.EN, "language_en", null),
+                Triple(AppLanguageSetting.RU, "language_ru", null),
+                Triple(AppLanguageSetting.UK, "language_uk", null)
+            )
+        }
+        val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
+        LanguageScreen(
+            selected = languageSetting,
+            options = languageOptions,
+            onSelect = {
+                viewModel.setLanguageSetting(it)
+                viewModel.showLanguageScreen(false)
+            },
+            onBack = {
+                viewModel.showLanguageScreen(false)
+            }
+        )
+        return
+    }
+
     val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val stations by viewModel.stations.collectAsStateWithLifecycle()
@@ -151,6 +179,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         stations = stations,
                         favorites = favorites,
                         activeUrl = currentUrl,
+                        playbackState = playbackState,
                         isLoading = isLoading,
                         hasMore = hasMore,
                         onStationSelect = { station ->
@@ -168,6 +197,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     FavoritesTab(
                         favorites = favorites,
                         activeUrl = currentUrl,
+                        playbackState = playbackState,
                         onStationSelect = { favStation ->
                             viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon)
                         },
