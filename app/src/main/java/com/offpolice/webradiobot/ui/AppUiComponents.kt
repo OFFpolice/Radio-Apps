@@ -363,7 +363,9 @@ fun AppHeader(
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -1159,6 +1161,7 @@ fun LanguageSelectorRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1209,65 +1212,90 @@ fun LanguageScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(CardBg)
                 .statusBarsPadding()
-                .padding(vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            IconButton(
-                onClick = onBack,
+            Box(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 8.dp)
-                    .testTag("language_back_button")
+                    .fillMaxWidth()
+                    .height(48.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(24.dp)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .testTag("language_back_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = PrimaryPink,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Text(
+                    text = stringLoc("setting_language"),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryPink,
+                    textAlign = TextAlign.Center
                 )
             }
-            Text(
-                text = stringLoc("setting_language"),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                modifier = Modifier.align(Alignment.Center)
-            )
         }
 
         LazyColumn(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(options) { (option, labelKey, _) ->
-                val isSelected = option == selected
-                Row(
+            item {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(CardBg)
-                        .clickable {
-                            onSelect(option)
-                        }
-                        .padding(horizontal = 20.dp, vertical = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                        .padding(8.dp)
                 ) {
-                    Text(
-                        text = stringLoc(labelKey),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Selected",
-                            tint = PrimaryPink,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    options.forEach { (option, labelKey, hintKey) ->
+                        val isSelected = option == selected
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) PrimaryPink.copy(alpha = 0.12f) else Color.Transparent)
+                                .clickable { onSelect(option) }
+                                .padding(vertical = 16.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onSelect(option) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = PrimaryPink,
+                                    unselectedColor = TextSecondary
+                                ),
+                                modifier = Modifier.testTag("radio_lang_${option.name}")
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringLoc(labelKey),
+                                    fontSize = 16.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                                if (hintKey != null) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = stringLoc(hintKey),
+                                        fontSize = 12.sp,
+                                        color = TextMuted
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
