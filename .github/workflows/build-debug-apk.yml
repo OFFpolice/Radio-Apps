@@ -24,6 +24,18 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Generate Gradle Wrapper (if missing)
+        run: |
+          if [ ! -f "gradlew" ]; then
+            java -version
+            gradle wrapper --gradle-version 8.5
+            git add gradle/wrapper/
+            git config --global user.email "actions@github.com"
+            git config --global user.name "GitHub Actions"
+            git commit -m "Add Gradle Wrapper" || true
+            git push || true
+          fi
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -36,4 +48,3 @@ jobs:
           name: webradiobot-debug
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
-          
