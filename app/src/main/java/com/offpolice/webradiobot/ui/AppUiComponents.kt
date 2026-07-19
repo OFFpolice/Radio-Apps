@@ -363,9 +363,7 @@ fun AppHeader(
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
+            modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -1217,16 +1215,17 @@ fun LanguageScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+                modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onBack,
+                Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .testTag("language_back_button")
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable { onBack() }
+                        .testTag("language_back_button"),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
