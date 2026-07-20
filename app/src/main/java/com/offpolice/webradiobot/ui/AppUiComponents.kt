@@ -1169,7 +1169,7 @@ fun LanguageSelectorRow(
             text = stringLoc("setting_language"),
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = PrimaryPink
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1218,22 +1218,17 @@ fun LanguageScreen(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = PrimaryPink,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .size(32.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
                         .clickable { onBack() }
-                        .testTag("language_back_button"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PrimaryPink,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                        .testTag("language_back_button")
+                )
                 Text(
                     text = stringLoc("setting_language"),
                     fontSize = 24.sp,
