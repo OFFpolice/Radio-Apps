@@ -366,58 +366,73 @@ fun AppHeader(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = title,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryPink,
-                textAlign = TextAlign.Center
-            )
+            AnimatedContent(
+                targetState = title,
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.92f)) togetherWith
+                    (fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.92f))
+                },
+                label = "header_title_anim"
+            ) { targetTitle ->
+                Text(
+                    text = targetTitle,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryPink,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
-        if (isSearchVisible) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(SearchBg)
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(26.dp))
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search Icon",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(24.dp)
-                )
+        AnimatedVisibility(
+            visible = isSearchVisible,
+            enter = expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeIn(animationSpec = tween(250)),
+            exit = shrinkVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) + fadeOut(animationSpec = tween(200))
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(SearchBg)
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(26.dp))
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search Icon",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(24.dp)
+                    )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                BasicTextField2_Placeholder(
-                    value = searchQuery,
-                    onValueChange = onSearchChange,
-                    placeholderText = stringLoc("search_placeholder"),
-                    modifier = Modifier.weight(1f)
-                )
+                    BasicTextField2_Placeholder(
+                        value = searchQuery,
+                        onValueChange = onSearchChange,
+                        placeholderText = stringLoc("search_placeholder"),
+                        modifier = Modifier.weight(1f)
+                    )
 
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { onSearchChange("") },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear Search",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = { onSearchChange("") },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear Search",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.height(4.dp))
             }
-            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
@@ -807,13 +822,23 @@ fun AppBottomNav(
         windowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier.testTag("bottom_nav")
     ) {
+        val radioSelected = activeTab == AppTab.RADIO
+        val radioIconScale by animateFloatAsState(
+            targetValue = if (radioSelected) 1.2f else 1.0f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            label = "radio_icon_scale"
+        )
         NavigationBarItem(
-            selected = activeTab == AppTab.RADIO,
+            selected = radioSelected,
             onClick = { onTabSelect(AppTab.RADIO) },
             icon = {
                 Icon(
-                    imageVector = if (activeTab == AppTab.RADIO) Icons.Filled.Radio else Icons.Outlined.Radio,
-                    contentDescription = "Radio Tab icon"
+                    imageVector = if (radioSelected) Icons.Filled.Radio else Icons.Outlined.Radio,
+                    contentDescription = "Radio Tab icon",
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = radioIconScale
+                        scaleY = radioIconScale
+                    }
                 )
             },
             label = { Text(stringLoc("tab_radio")) },
@@ -828,13 +853,23 @@ fun AppBottomNav(
             modifier = Modifier.testTag("nav_item_radio")
         )
 
+        val favSelected = activeTab == AppTab.FAVORITES
+        val favIconScale by animateFloatAsState(
+            targetValue = if (favSelected) 1.2f else 1.0f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            label = "fav_icon_scale"
+        )
         NavigationBarItem(
-            selected = activeTab == AppTab.FAVORITES,
+            selected = favSelected,
             onClick = { onTabSelect(AppTab.FAVORITES) },
             icon = {
                 Icon(
-                    imageVector = if (activeTab == AppTab.FAVORITES) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "Favorites Tab icon"
+                    imageVector = if (favSelected) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = "Favorites Tab icon",
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = favIconScale
+                        scaleY = favIconScale
+                    }
                 )
             },
             label = { Text(stringLoc("tab_favorites")) },
@@ -849,13 +884,23 @@ fun AppBottomNav(
             modifier = Modifier.testTag("nav_item_favorites")
         )
 
+        val settingsSelected = activeTab == AppTab.SETTINGS
+        val settingsIconScale by animateFloatAsState(
+            targetValue = if (settingsSelected) 1.2f else 1.0f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            label = "settings_icon_scale"
+        )
         NavigationBarItem(
-            selected = activeTab == AppTab.SETTINGS,
+            selected = settingsSelected,
             onClick = { onTabSelect(AppTab.SETTINGS) },
             icon = {
                 Icon(
-                    imageVector = if (activeTab == AppTab.SETTINGS) Icons.Filled.Settings else Icons.Outlined.Settings,
-                    contentDescription = "Settings Tab icon"
+                    imageVector = if (settingsSelected) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Settings Tab icon",
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = settingsIconScale
+                        scaleY = settingsIconScale
+                    }
                 )
             },
             label = { Text(stringLoc("tab_settings")) },
