@@ -88,11 +88,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppContent(viewModel: RadioViewModel) {
     val isLanguageScreenOpen by viewModel.isLanguageScreenOpen.collectAsStateWithLifecycle()
+    val areAnimationsEnabled by viewModel.animationsEnabled.collectAsStateWithLifecycle()
+    val areHapticsEnabled by viewModel.hapticsEnabled.collectAsStateWithLifecycle()
 
     AnimatedContent(
         targetState = isLanguageScreenOpen,
         transitionSpec = {
-            if (targetState) {
+            if (!areAnimationsEnabled) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else if (targetState) {
                 // Opening LanguageScreen: slide in from right with fade and scale
                 (slideInHorizontally(
                     animationSpec = tween(350, easing = FastOutSlowInEasing),
@@ -171,7 +175,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         activeTab = activeTab,
                         searchQuery = searchQuery,
                         onSearchChange = { viewModel.updateSearchQuery(it) },
-                        isSearchVisible = activeTab == AppTab.RADIO
+                        isSearchVisible = activeTab == AppTab.RADIO,
+                        animationsEnabled = areAnimationsEnabled
                     )
                 },
                 bottomBar = {
@@ -187,7 +192,9 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         )
                         AppBottomNav(
                             activeTab = activeTab,
-                            onTabSelect = { viewModel.selectTab(it) }
+                            onTabSelect = { viewModel.selectTab(it) },
+                            animationsEnabled = areAnimationsEnabled,
+                            hapticsEnabled = areHapticsEnabled
                         )
                     }
                 },
@@ -202,25 +209,29 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     AnimatedContent(
                         targetState = activeTab,
                         transitionSpec = {
-                            val isForward = targetState.ordinal > initialState.ordinal
-                            if (isForward) {
-                                (slideInHorizontally(
-                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { width -> width }
-                                ) + fadeIn(animationSpec = tween(250)) + scaleIn(initialScale = 0.96f)) togetherWith
-                                (slideOutHorizontally(
-                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                    targetOffsetX = { width -> -width / 3 }
-                                ) + fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.96f))
+                            if (!areAnimationsEnabled) {
+                                EnterTransition.None togetherWith ExitTransition.None
                             } else {
-                                (slideInHorizontally(
-                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { width -> -width }
-                                ) + fadeIn(animationSpec = tween(250)) + scaleIn(initialScale = 0.96f)) togetherWith
-                                (slideOutHorizontally(
-                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                    targetOffsetX = { width -> width / 3 }
-                                ) + fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.96f))
+                                val isForward = targetState.ordinal > initialState.ordinal
+                                if (isForward) {
+                                    (slideInHorizontally(
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                        initialOffsetX = { width -> width }
+                                    ) + fadeIn(animationSpec = tween(250)) + scaleIn(initialScale = 0.96f)) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                        targetOffsetX = { width -> -width / 3 }
+                                    ) + fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.96f))
+                                } else {
+                                    (slideInHorizontally(
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                        initialOffsetX = { width -> -width }
+                                    ) + fadeIn(animationSpec = tween(250)) + scaleIn(initialScale = 0.96f)) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                        targetOffsetX = { width -> width / 3 }
+                                    ) + fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.96f))
+                                }
                             }
                         },
                         label = "tab_content_transition"

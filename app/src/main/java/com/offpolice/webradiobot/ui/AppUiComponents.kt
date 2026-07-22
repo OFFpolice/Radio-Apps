@@ -32,8 +32,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import android.view.HapticFeedbackConstants
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -339,6 +343,7 @@ fun AppHeader(
     searchQuery: String,
     onSearchChange: (String) -> Unit,
     isSearchVisible: Boolean,
+    animationsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
@@ -369,8 +374,12 @@ fun AppHeader(
             AnimatedContent(
                 targetState = title,
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.92f)) togetherWith
-                    (fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.92f))
+                    if (animationsEnabled) {
+                        (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.92f)) togetherWith
+                        (fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.92f))
+                    } else {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    }
                 },
                 label = "header_title_anim"
             ) { targetTitle ->
@@ -386,8 +395,8 @@ fun AppHeader(
 
         AnimatedVisibility(
             visible = isSearchVisible,
-            enter = expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeIn(animationSpec = tween(250)),
-            exit = shrinkVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) + fadeOut(animationSpec = tween(200))
+            enter = if (animationsEnabled) expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeIn(animationSpec = tween(250)) else EnterTransition.None,
+            exit = if (animationsEnabled) shrinkVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) + fadeOut(animationSpec = tween(200)) else ExitTransition.None
         ) {
             Column {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -809,13 +818,39 @@ fun PlayerBar(
     }
 }
 
+@Composable
+fun rememberHapticFeedback(enabled: Boolean = true): () -> Unit {
+    val haptic = LocalHapticFeedback.current
+    val view = LocalView.current
+    return remember(enabled, haptic, view) {
+        {
+            if (enabled) {
+                try {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                } catch (e: Exception) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
+        }
+    }
+}
+
 // Tab Switching Bottom bar
 @Composable
 fun AppBottomNav(
     activeTab: AppTab,
     onTabSelect: (AppTab) -> Unit,
+    animationsEnabled: Boolean = true,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
+    val animSpec: AnimationSpec<Float> = if (animationsEnabled) {
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+    } else {
+        snap()
+    }
+
     NavigationBar(
         containerColor = CardBg,
         contentColor = TextSecondary,
@@ -825,12 +860,15 @@ fun AppBottomNav(
         val radioSelected = activeTab == AppTab.RADIO
         val radioIconScale by animateFloatAsState(
             targetValue = if (radioSelected) 1.2f else 1.0f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            animationSpec = animSpec,
             label = "radio_icon_scale"
         )
         NavigationBarItem(
             selected = radioSelected,
-            onClick = { onTabSelect(AppTab.RADIO) },
+            onClick = {
+                triggerHaptic()
+                onTabSelect(AppTab.RADIO)
+            },
             icon = {
                 Icon(
                     imageVector = if (radioSelected) Icons.Filled.Radio else Icons.Outlined.Radio,
@@ -856,12 +894,15 @@ fun AppBottomNav(
         val favSelected = activeTab == AppTab.FAVORITES
         val favIconScale by animateFloatAsState(
             targetValue = if (favSelected) 1.2f else 1.0f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            animationSpec = animSpec,
             label = "fav_icon_scale"
         )
         NavigationBarItem(
             selected = favSelected,
-            onClick = { onTabSelect(AppTab.FAVORITES) },
+            onClick = {
+                triggerHaptic()
+                onTabSelect(AppTab.FAVORITES)
+            },
             icon = {
                 Icon(
                     imageVector = if (favSelected) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -887,12 +928,15 @@ fun AppBottomNav(
         val settingsSelected = activeTab == AppTab.SETTINGS
         val settingsIconScale by animateFloatAsState(
             targetValue = if (settingsSelected) 1.2f else 1.0f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            animationSpec = animSpec,
             label = "settings_icon_scale"
         )
         NavigationBarItem(
             selected = settingsSelected,
-            onClick = { onTabSelect(AppTab.SETTINGS) },
+            onClick = {
+                triggerHaptic()
+                onTabSelect(AppTab.SETTINGS)
+            },
             icon = {
                 Icon(
                     imageVector = if (settingsSelected) Icons.Filled.Settings else Icons.Outlined.Settings,
@@ -1396,9 +1440,100 @@ fun SocialLinkRow(
 }
 
 @Composable
+fun AnimationsToggleCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    hapticsEnabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .clickable {
+                triggerHaptic()
+                onToggle(!enabled)
+            }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = stringLoc("setting_animations"),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryPink
+        )
+        Switch(
+            checked = enabled,
+            onCheckedChange = {
+                triggerHaptic()
+                onToggle(it)
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = PrimaryPink,
+                uncheckedThumbColor = TextMuted,
+                uncheckedTrackColor = SearchBg
+            ),
+            modifier = Modifier.testTag("animations_switch")
+        )
+    }
+}
+
+@Composable
+fun VibrationToggleCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val triggerHaptic = rememberHapticFeedback(true)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .clickable {
+                triggerHaptic()
+                onToggle(!enabled)
+            }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = stringLoc("setting_vibration"),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryPink
+        )
+        Switch(
+            checked = enabled,
+            onCheckedChange = {
+                triggerHaptic()
+                onToggle(it)
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = PrimaryPink,
+                uncheckedThumbColor = TextMuted,
+                uncheckedTrackColor = SearchBg
+            ),
+            modifier = Modifier.testTag("vibration_switch")
+        )
+    }
+}
+
+@Composable
 fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
     val themeSetting by viewModel.themeSetting.collectAsStateWithLifecycle()
     val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
+    val animationsEnabled by viewModel.animationsEnabled.collectAsStateWithLifecycle()
+    val hapticsEnabled by viewModel.hapticsEnabled.collectAsStateWithLifecycle()
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
     val languageOptions = remember {
@@ -1441,6 +1576,23 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 },
                 selected = themeSetting,
                 onSelect = { viewModel.setThemeSetting(it) }
+            )
+        }
+
+        // Animations setting (placed after Theme)
+        item {
+            AnimationsToggleCard(
+                enabled = animationsEnabled,
+                onToggle = { viewModel.setAnimationsEnabled(it) },
+                hapticsEnabled = hapticsEnabled
+            )
+        }
+
+        // Vibration setting
+        item {
+            VibrationToggleCard(
+                enabled = hapticsEnabled,
+                onToggle = { viewModel.setHapticsEnabled(it) }
             )
         }
 

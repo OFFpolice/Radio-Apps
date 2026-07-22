@@ -52,6 +52,16 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     )
     val languageSetting: StateFlow<AppLanguageSetting> = _languageSetting.asStateFlow()
 
+    private val _animationsEnabled = MutableStateFlow(
+        sharedPrefs.getBoolean("animations_enabled", true)
+    )
+    val animationsEnabled: StateFlow<Boolean> = _animationsEnabled.asStateFlow()
+
+    private val _hapticsEnabled = MutableStateFlow(
+        sharedPrefs.getBoolean("haptics_enabled", true)
+    )
+    val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled.asStateFlow()
+
     fun setThemeSetting(theme: AppThemeSetting) {
         _themeSetting.value = theme
         sharedPrefs.edit().putString("theme_setting", theme.name).apply()
@@ -60,6 +70,16 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     fun setLanguageSetting(lang: AppLanguageSetting) {
         _languageSetting.value = lang
         sharedPrefs.edit().putString("language_setting", lang.name).apply()
+    }
+
+    fun setAnimationsEnabled(enabled: Boolean) {
+        _animationsEnabled.value = enabled
+        sharedPrefs.edit().putBoolean("animations_enabled", enabled).apply()
+    }
+
+    fun setHapticsEnabled(enabled: Boolean) {
+        _hapticsEnabled.value = enabled
+        sharedPrefs.edit().putBoolean("haptics_enabled", enabled).apply()
     }
 
     private val _isLanguageScreenOpen = MutableStateFlow(false)
