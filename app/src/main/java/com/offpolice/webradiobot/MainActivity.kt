@@ -142,7 +142,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                 },
                 onBack = {
                     viewModel.showLanguageScreen(false)
-                }
+                },
+                hapticsEnabled = areHapticsEnabled
             )
         } else {
             val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
@@ -176,7 +177,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         searchQuery = searchQuery,
                         onSearchChange = { viewModel.updateSearchQuery(it) },
                         isSearchVisible = activeTab == AppTab.RADIO,
-                        animationsEnabled = areAnimationsEnabled
+                        animationsEnabled = areAnimationsEnabled,
+                        hapticsEnabled = areHapticsEnabled
                     )
                 },
                 bottomBar = {
@@ -188,7 +190,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         PlayerBar(
                             currentName = currentName,
                             playbackState = playbackState,
-                            onPlayToggle = { viewModel.togglePlay() }
+                            onPlayToggle = { viewModel.togglePlay() },
+                            hapticsEnabled = areHapticsEnabled
                         )
                         AppBottomNav(
                             activeTab = activeTab,
@@ -253,7 +256,9 @@ fun MainAppContent(viewModel: RadioViewModel) {
                                     },
                                     onLoadMore = {
                                         viewModel.fetchStations(reset = false)
-                                    }
+                                    },
+                                    animationsEnabled = areAnimationsEnabled,
+                                    hapticsEnabled = areHapticsEnabled
                                 )
                             }
                             AppTab.FAVORITES -> {
@@ -266,7 +271,9 @@ fun MainAppContent(viewModel: RadioViewModel) {
                                     },
                                     onToggleFavorite = { favStation ->
                                         viewModel.toggleFavorite(favStation.urlResolved, favStation.name, favStation.favicon, favStation.tags)
-                                    }
+                                    },
+                                    animationsEnabled = areAnimationsEnabled,
+                                    hapticsEnabled = areHapticsEnabled
                                 )
                             }
                             AppTab.SETTINGS -> {

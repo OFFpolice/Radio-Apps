@@ -37,6 +37,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -310,16 +315,22 @@ fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
 fun ScrollToTopButton(
     visible: Boolean,
     onClick: () -> Unit,
+    animationsEnabled: Boolean = true,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
+        enter = if (animationsEnabled) fadeIn() + expandVertically(expandFrom = Alignment.Bottom) else EnterTransition.None,
+        exit = if (animationsEnabled) fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom) else ExitTransition.None,
         modifier = modifier
     ) {
         FloatingActionButton(
-            onClick = onClick,
+            onClick = {
+                triggerHaptic()
+                onClick()
+            },
             containerColor = SecondaryPink,
             contentColor = Color.White,
             shape = CircleShape,
@@ -344,9 +355,11 @@ fun AppHeader(
     onSearchChange: (String) -> Unit,
     isSearchVisible: Boolean,
     animationsEnabled: Boolean = true,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
 
     // Reactively clear focus and hide keyboard if search is cleared
     LaunchedEffect(searchQuery) {
@@ -428,7 +441,10 @@ fun AppHeader(
 
                     if (searchQuery.isNotEmpty()) {
                         IconButton(
-                            onClick = { onSearchChange("") },
+                            onClick = {
+                                triggerHaptic()
+                                onSearchChange("")
+                            },
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
@@ -520,23 +536,32 @@ fun StationCard(
     onSelect: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    animationsEnabled: Boolean = true,
+    hapticsEnabled: Boolean = true
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     val cardBackground = if (isActive) ActiveCardBg else CardBg
     val borderBrush = if (isActive) {
-        val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
-        val alpha by infiniteTransition.animateFloat(
-            initialValue = 0.2f,
-            targetValue = 0.7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulse_alpha"
-        )
-        Brush.linearGradient(
-            colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
-        )
+        if (animationsEnabled) {
+            val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 0.7f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "pulse_alpha"
+            )
+            Brush.linearGradient(
+                colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
+            )
+        } else {
+            Brush.linearGradient(
+                colors = listOf(PrimaryPink.copy(alpha = 0.6f), SecondaryPink.copy(alpha = 0.3f))
+            )
+        }
     } else {
         remember {
             Brush.linearGradient(
@@ -556,7 +581,10 @@ fun StationCard(
                 brush = borderBrush,
                 shape = RoundedCornerShape(16.dp)
             )
-            .clickable(onClick = onSelect)
+            .clickable {
+                triggerHaptic()
+                onSelect()
+            }
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
             .testTag("station_card_${urlResolved.hashCode()}"),
         verticalAlignment = Alignment.CenterVertically
@@ -650,7 +678,10 @@ fun StationCard(
 
         // Favorite Toggle button
         IconButton(
-            onClick = onToggleFavorite,
+            onClick = {
+                triggerHaptic()
+                onToggleFavorite()
+            },
             modifier = Modifier
                 .size(36.dp)
                 .testTag("fav_btn_${urlResolved.hashCode()}")
@@ -693,8 +724,10 @@ fun PlayerBar(
     currentName: String?,
     playbackState: PlaybackState,
     onPlayToggle: () -> Unit,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     val borderColor = TextSecondary.copy(alpha = 0.12f)
     Row(
         modifier = modifier
@@ -715,7 +748,10 @@ fun PlayerBar(
     ) {
         // Large Play Button
         Button(
-            onClick = onPlayToggle,
+            onClick = {
+                triggerHaptic()
+                onPlayToggle()
+            },
             colors = ButtonDefaults.buttonColors(
                 containerColor = SecondaryPink,
                 contentColor = Color.White
@@ -820,15 +856,37 @@ fun PlayerBar(
 
 @Composable
 fun rememberHapticFeedback(enabled: Boolean = true): () -> Unit {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val view = LocalView.current
-    return remember(enabled, haptic, view) {
+    return remember(enabled, context, haptic, view) {
         {
             if (enabled) {
                 try {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                        vibratorManager?.defaultVibrator
+                    } else {
+                        @Suppress("DEPRECATION")
+                        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                    }
+
+                    if (vibrator != null && vibrator.hasVibrator()) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(40L, VibrationEffect.DEFAULT_AMPLITUDE))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(40L)
+                        }
+                    } else {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                    }
                 } catch (e: Exception) {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    } catch (_: Exception) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
                 }
             }
         }
@@ -1000,6 +1058,8 @@ fun RadioTab(
     onStationSelect: (ApiStation) -> Unit,
     onToggleFavorite: (ApiStation) -> Unit,
     onLoadMore: () -> Unit,
+    animationsEnabled: Boolean = true,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -1065,7 +1125,9 @@ fun RadioTab(
                         isFavorite = isFav,
                         onSelect = onSelectLambda,
                         onToggleFavorite = onToggleFavLambda,
-                        isPlaying = playbackState == PlaybackState.PLAYING
+                        isPlaying = playbackState == PlaybackState.PLAYING,
+                        animationsEnabled = animationsEnabled,
+                        hapticsEnabled = hapticsEnabled
                     )
                 }
 
@@ -1097,6 +1159,8 @@ fun RadioTab(
             onClick = {
                 scope.launch { listState.animateScrollToItem(0) }
             },
+            animationsEnabled = animationsEnabled,
+            hapticsEnabled = hapticsEnabled,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 20.dp, end = 20.dp)
@@ -1111,6 +1175,8 @@ fun FavoritesTab(
     playbackState: PlaybackState,
     onStationSelect: (FavoriteStation) -> Unit,
     onToggleFavorite: (FavoriteStation) -> Unit,
+    animationsEnabled: Boolean = true,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -1148,7 +1214,9 @@ fun FavoritesTab(
                         isFavorite = true,
                         onSelect = onSelectLambda,
                         onToggleFavorite = onToggleFavLambda,
-                        isPlaying = playbackState == PlaybackState.PLAYING
+                        isPlaying = playbackState == PlaybackState.PLAYING,
+                        animationsEnabled = animationsEnabled,
+                        hapticsEnabled = hapticsEnabled
                     )
                 }
             }
@@ -1163,6 +1231,8 @@ fun FavoritesTab(
                 onClick = {
                     scope.launch { listState.animateScrollToItem(0) }
                 },
+                animationsEnabled = animationsEnabled,
+                hapticsEnabled = hapticsEnabled,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(bottom = 20.dp, end = 20.dp)
@@ -1176,8 +1246,10 @@ fun <T> SettingsOptionCard(
     title: String,
     options: List<Triple<T, String, String?>>,
     selected: T,
-    onSelect: (T) -> Unit
+    onSelect: (T) -> Unit,
+    hapticsEnabled: Boolean = true
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1201,13 +1273,19 @@ fun <T> SettingsOptionCard(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
                     .background(if (isSelected) PrimaryPink.copy(alpha = 0.12f) else Color.Transparent)
-                    .clickable { onSelect(option) }
+                    .clickable {
+                        triggerHaptic()
+                        onSelect(option)
+                    }
                     .padding(vertical = 12.dp, horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(
                     selected = isSelected,
-                    onClick = { onSelect(option) },
+                    onClick = {
+                        triggerHaptic()
+                        onSelect(option)
+                    },
                     colors = RadioButtonDefaults.colors(
                         selectedColor = PrimaryPink,
                         unselectedColor = TextSecondary
@@ -1238,8 +1316,10 @@ fun <T> SettingsOptionCard(
 fun LanguageSelectorRow(
     selected: AppLanguageSetting,
     options: List<Triple<AppLanguageSetting, String, String?>>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    hapticsEnabled: Boolean = true
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     val currentOption = options.find { it.first == selected }
     val currentLabel = currentOption?.let { stringLoc(it.second) } ?: ""
 
@@ -1249,7 +1329,10 @@ fun LanguageSelectorRow(
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
             .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .clickable {
+                triggerHaptic()
+                onClick()
+            }
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -1284,8 +1367,10 @@ fun LanguageScreen(
     selected: AppLanguageSetting,
     options: List<Triple<AppLanguageSetting, String, String?>>,
     onSelect: (AppLanguageSetting) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    hapticsEnabled: Boolean = true
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     BackHandler {
         onBack()
     }
@@ -1315,7 +1400,10 @@ fun LanguageScreen(
                         .align(Alignment.CenterStart)
                         .size(24.dp)
                         .clip(CircleShape)
-                        .clickable { onBack() }
+                        .clickable {
+                            triggerHaptic()
+                            onBack()
+                        }
                         .testTag("language_back_button")
                 )
                 Text(
@@ -1348,13 +1436,19 @@ fun LanguageScreen(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isSelected) PrimaryPink.copy(alpha = 0.12f) else Color.Transparent)
-                                .clickable { onSelect(option) }
+                                .clickable {
+                                    triggerHaptic()
+                                    onSelect(option)
+                                }
                                 .padding(vertical = 16.dp, horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
                                 selected = isSelected,
-                                onClick = { onSelect(option) },
+                                onClick = {
+                                    triggerHaptic()
+                                    onSelect(option)
+                                },
                                 colors = RadioButtonDefaults.colors(
                                     selectedColor = PrimaryPink,
                                     unselectedColor = TextSecondary
@@ -1392,13 +1486,18 @@ fun SocialLinkRow(
     handle: String,
     icon: ImageVector,
     url: String,
+    hapticsEnabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable {
+                triggerHaptic()
+                onClick()
+            }
             .padding(vertical = 10.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1563,7 +1662,8 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
             LanguageSelectorRow(
                 selected = languageSetting,
                 options = languageOptions,
-                onClick = { viewModel.showLanguageScreen(true) }
+                onClick = { viewModel.showLanguageScreen(true) },
+                hapticsEnabled = hapticsEnabled
             )
         }
 
@@ -1575,7 +1675,8 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
                 },
                 selected = themeSetting,
-                onSelect = { viewModel.setThemeSetting(it) }
+                onSelect = { viewModel.setThemeSetting(it) },
+                hapticsEnabled = hapticsEnabled
             )
         }
 
@@ -1657,7 +1758,8 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     title = "Telegram",
                     handle = "@OFFpolice",
                     icon = SocialIcons.Telegram,
-                    url = "https://t.me/OFFpolice"
+                    url = "https://t.me/OFFpolice",
+                    hapticsEnabled = hapticsEnabled
                 ) {
                     uriHandler.openUri("https://t.me/OFFpolice")
                 }
@@ -1666,7 +1768,8 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     title = "X (Twitter)",
                     handle = "@OFFpolice2077",
                     icon = SocialIcons.X,
-                    url = "https://x.com/OFFpolice2077"
+                    url = "https://x.com/OFFpolice2077",
+                    hapticsEnabled = hapticsEnabled
                 ) {
                     uriHandler.openUri("https://x.com/OFFpolice2077")
                 }
@@ -1675,7 +1778,8 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     title = "Instagram",
                     handle = "@offpolice2077",
                     icon = SocialIcons.Instagram,
-                    url = "https://www.instagram.com/offpolice2077"
+                    url = "https://www.instagram.com/offpolice2077",
+                    hapticsEnabled = hapticsEnabled
                 ) {
                     uriHandler.openUri("https://www.instagram.com/offpolice2077")
                 }
@@ -1684,7 +1788,8 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     title = "WebRadioBot",
                     handle = "t.me/Web_radio_bot/app",
                     icon = SocialIcons.Telegram,
-                    url = "https://t.me/Web_radio_bot/app"
+                    url = "https://t.me/Web_radio_bot/app",
+                    hapticsEnabled = hapticsEnabled
                 ) {
                     uriHandler.openUri("https://t.me/Web_radio_bot/app")
                 }
@@ -1694,6 +1799,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Dev API URL element
+                val triggerHaptic = rememberHapticFeedback(hapticsEnabled)
                 Text(
                     text = stringLoc("link_dev_api"),
                     color = PrimaryPink,
@@ -1702,7 +1808,10 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { uriHandler.openUri("https://api.radio-browser.info/") }
+                        .clickable {
+                            triggerHaptic()
+                            uriHandler.openUri("https://api.radio-browser.info/")
+                        }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
