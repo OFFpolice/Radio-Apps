@@ -190,6 +190,9 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         },
                         onLoadMore = {
                             viewModel.fetchStations(reset = false)
+                        },
+                        onRefresh = {
+                            viewModel.fetchStations(reset = true)
                         }
                     )
                 }
