@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -913,7 +912,6 @@ fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Mo
 }
 
 // Individual Tab Views
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RadioTab(
     stations: List<ApiStation>,
@@ -925,7 +923,6 @@ fun RadioTab(
     onStationSelect: (ApiStation) -> Unit,
     onToggleFavorite: (ApiStation) -> Unit,
     onLoadMore: () -> Unit,
-    onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -953,66 +950,60 @@ fun RadioTab(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        PullToRefreshBox(
-            isRefreshing = isLoading,
-            onRefresh = onRefresh,
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            LazyColumn(
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
+            item {
+                SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
+            }
+
+            if (stations.isEmpty() && !isLoading) {
                 item {
-                    SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
+                    EmptyPlaceholder(
+                        message = stringLoc("nothing_found"),
+                        icon = Icons.Default.SearchOff
+                    )
+                }
+            } else {
+                items(stations, key = { it.url_resolved }) { station ->
+                    val isActive = activeUrl == station.url_resolved
+                    val isFav = favoriteUrls.contains(station.url_resolved)
+
+                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
+                    val onSelectLambda = remember(station.url_resolved) {
+                        { onStationSelect(station) }
+                    }
+                    val onToggleFavLambda = remember(station.url_resolved) {
+                        { onToggleFavorite(station) }
+                    }
+
+                    StationCard(
+                        name = station.name,
+                        faviconUrl = station.favicon,
+                        tags = station.tags,
+                        urlResolved = station.url_resolved,
+                        isActive = isActive,
+                        isFavorite = isFav,
+                        onSelect = onSelectLambda,
+                        onToggleFavorite = onToggleFavLambda,
+                        isPlaying = playbackState == PlaybackState.PLAYING
+                    )
                 }
 
-                if (stations.isEmpty() && !isLoading) {
+                if (isLoading) {
                     item {
-                        EmptyPlaceholder(
-                            message = stringLoc("nothing_found"),
-                            icon = Icons.Default.SearchOff
-                        )
-                    }
-                } else {
-                    items(stations, key = { it.url_resolved }) { station ->
-                        val isActive = activeUrl == station.url_resolved
-                        val isFav = favoriteUrls.contains(station.url_resolved)
-
-                        // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
-                        val onSelectLambda = remember(station.url_resolved) {
-                            { onStationSelect(station) }
-                        }
-                        val onToggleFavLambda = remember(station.url_resolved) {
-                            { onToggleFavorite(station) }
-                        }
-
-                        StationCard(
-                            name = station.name,
-                            faviconUrl = station.favicon,
-                            tags = station.tags,
-                            urlResolved = station.url_resolved,
-                            isActive = isActive,
-                            isFavorite = isFav,
-                            onSelect = onSelectLambda,
-                            onToggleFavorite = onToggleFavLambda,
-                            isPlaying = playbackState == PlaybackState.PLAYING
-                        )
-                    }
-
-                    if (isLoading) {
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    color = PrimaryPink,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = PrimaryPink,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
