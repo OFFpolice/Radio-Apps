@@ -177,6 +177,7 @@ class RadioPlayerManager(private val context: Context) {
                 .setArtist("Web Radio")
                 .setDisplayTitle(name)
                 .setSubtitle("Web Radio")
+                .setIsPlayable(true)
                 .apply {
                     if (!favicon.isNullOrBlank()) {
                         setArtworkUri(Uri.parse(favicon))
@@ -194,6 +195,7 @@ class RadioPlayerManager(private val context: Context) {
                 stop()
                 clearMediaItems()
                 setMediaItem(mediaItem)
+                playlistMetadata = metadata
                 prepare()
                 playWhenReady = true
             }
@@ -216,13 +218,7 @@ class RadioPlayerManager(private val context: Context) {
                                 val updatedMetadata = metadata.buildUpon()
                                     .setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
                                     .build()
-                                val currentItem = exoPlayer?.currentMediaItem
-                                if (currentItem != null) {
-                                    val updatedItem = currentItem.buildUpon()
-                                        .setMediaMetadata(updatedMetadata)
-                                        .build()
-                                    exoPlayer?.replaceMediaItem(0, updatedItem)
-                                }
+                                exoPlayer?.playlistMetadata = updatedMetadata
                             }
                         }
                     } catch (e: Exception) {
