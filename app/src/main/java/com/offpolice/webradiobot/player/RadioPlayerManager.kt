@@ -2,23 +2,17 @@ package com.offpolice.webradiobot.player
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import com.offpolice.webradiobot.data.ApiStation
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import androidx.media3.exoplayer.DefaultLoadControl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 enum class PlaybackState {
     IDLE,
@@ -29,15 +23,16 @@ enum class PlaybackState {
 }
 
 class RadioPlayerManager(private val context: Context) {
-    private val contextToUse = context.applicationContext
+    private val contextToUse = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        context.createAttributionContext("webradio")
+    } else {
+        context
+    }
     private var exoPlayer: ExoPlayer? = null
 
     companion object {
         @JvmStatic
         var sharedPlayer: ExoPlayer? = null
-
-        @JvmStatic
-        var sharedManager: RadioPlayerManager? = null
     }
 
     private val _playbackState = MutableStateFlow(PlaybackState.IDLE)
@@ -52,54 +47,18 @@ class RadioPlayerManager(private val context: Context) {
     private val _currentFavicon = MutableStateFlow<String?>(null)
     val currentFavicon: StateFlow<String?> = _currentFavicon.asStateFlow()
 
-    private var stationList: List<ApiStation> = emptyList()
-
     // Flag to handle manual pause state from user
     private var isManuallyPaused = false
 
     init {
-        sharedManager = this
         initializePlayer()
-    }
-
-    fun updateStationList(list: List<ApiStation>) {
-        stationList = list
-    }
-
-    fun playNextStation() {
-        if (stationList.isEmpty()) return
-        val currentUrlValue = _currentUrl.value ?: return
-        val currentIndex = stationList.indexOfFirst { it.url_resolved == currentUrlValue }
-        if (currentIndex != -1) {
-            val nextIndex = (currentIndex + 1) % stationList.size
-            val nextStation = stationList[nextIndex]
-            play(nextStation.url_resolved, nextStation.name, nextStation.favicon)
-        }
-    }
-
-    fun playPreviousStation() {
-        if (stationList.isEmpty()) return
-        val currentUrlValue = _currentUrl.value ?: return
-        val currentIndex = stationList.indexOfFirst { it.url_resolved == currentUrlValue }
-        if (currentIndex != -1) {
-            val prevIndex = (currentIndex - 1 + stationList.size) % stationList.size
-            val prevStation = stationList[prevIndex]
-            play(prevStation.url_resolved, prevStation.name, prevStation.favicon)
-        }
-    }
-
-    private fun startService() {
-        try {
-            val intent = Intent(contextToUse, RadioPlaybackService::class.java)
-            contextToUse.startService(intent)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     private fun initializePlayer() {
         if (exoPlayer != null) return
 
+        // Set low buffering limits so that playback starts immediately!
+        // We set targets for live stream speed optimization with 0.25s start latency.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 1000, // minBufferMs
@@ -159,7 +118,6 @@ class RadioPlayerManager(private val context: Context) {
                 })
             }
         sharedPlayer = exoPlayer
-        startService()
     }
 
     fun play(url: String, name: String, favicon: String?) {
@@ -172,19 +130,15 @@ class RadioPlayerManager(private val context: Context) {
         try {
             initializePlayer()
 
-            val metadataBuilder = MediaMetadata.Builder()
+            val metadata = MediaMetadata.Builder()
                 .setTitle(name)
                 .setArtist("Web Radio")
-                .setDisplayTitle(name)
-                .setSubtitle("Web Radio")
-                .setIsPlayable(true)
                 .apply {
                     if (!favicon.isNullOrBlank()) {
-                        setArtworkUri(Uri.parse(favicon))
+                        setArtworkUri(android.net.Uri.parse(favicon))
                     }
                 }
-
-            val metadata = metadataBuilder.build()
+                .build()
 
             val mediaItem = MediaItem.Builder()
                 .setUri(url)
@@ -195,36 +149,8 @@ class RadioPlayerManager(private val context: Context) {
                 stop()
                 clearMediaItems()
                 setMediaItem(mediaItem)
-                playlistMetadata = metadata
                 prepare()
                 playWhenReady = true
-            }
-
-            // Asynchronously fetch artwork image bytes for System Lockscreen Media Notification
-            if (!favicon.isNullOrBlank()) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val urlObj = java.net.URL(favicon)
-                        val connection = urlObj.openConnection() as java.net.HttpURLConnection
-                        connection.connectTimeout = 3000
-                        connection.readTimeout = 3000
-                        connection.doInput = true
-                        connection.connect()
-                        val input = connection.inputStream
-                        val bytes = input.readBytes()
-                        input.close()
-                        withContext(Dispatchers.Main) {
-                            if (_currentUrl.value == url && exoPlayer != null) {
-                                val updatedMetadata = metadata.buildUpon()
-                                    .setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                                    .build()
-                                exoPlayer?.playlistMetadata = updatedMetadata
-                            }
-                        }
-                    } catch (e: Exception) {
-                        // Ignore network artwork errors, fallback to default Uri
-                    }
-                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -283,7 +209,6 @@ class RadioPlayerManager(private val context: Context) {
         } finally {
             exoPlayer = null
             sharedPlayer = null
-            sharedManager = null
             _playbackState.value = PlaybackState.IDLE
         }
     }

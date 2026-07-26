@@ -40,20 +40,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                androidx.core.app.ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                    1001
-                )
-            }
-        }
-
         setContent {
             // Initialize the ViewModel using the custom factory
             val viewModel: RadioViewModel by viewModels {
@@ -102,7 +88,29 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppContent(viewModel: RadioViewModel) {
+    val isPrivacyPolicyAccepted by viewModel.isPrivacyPolicyAccepted.collectAsStateWithLifecycle()
+    val isPrivacyPolicyOpen by viewModel.isPrivacyPolicyOpen.collectAsStateWithLifecycle()
     val isLanguageScreenOpen by viewModel.isLanguageScreenOpen.collectAsStateWithLifecycle()
+
+    if (!isPrivacyPolicyAccepted) {
+        PrivacyPolicyScreen(
+            isConsentFlow = true,
+            onAccept = {
+                viewModel.setPrivacyPolicyAccepted(true)
+            }
+        )
+        return
+    }
+
+    if (isPrivacyPolicyOpen) {
+        PrivacyPolicyScreen(
+            isConsentFlow = false,
+            onBack = {
+                viewModel.showPrivacyPolicy(false)
+            }
+        )
+        return
+    }
 
     if (isLanguageScreenOpen) {
         val languageOptions = remember {
