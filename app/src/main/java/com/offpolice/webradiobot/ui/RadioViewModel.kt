@@ -195,6 +195,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
                 }
 
                 _stations.value = processed.first
+                playerManager.updateStationList(processed.first)
                 offset += processed.second
                 _hasMore.value = processed.second == LIMIT
             } catch (e: Exception) {
