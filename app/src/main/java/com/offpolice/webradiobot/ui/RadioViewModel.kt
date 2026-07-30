@@ -69,23 +69,6 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         _isLanguageScreenOpen.value = show
     }
 
-    private val _isPrivacyPolicyOpen = MutableStateFlow(false)
-    val isPrivacyPolicyOpen: StateFlow<Boolean> = _isPrivacyPolicyOpen.asStateFlow()
-
-    fun showPrivacyPolicy(show: Boolean) {
-        _isPrivacyPolicyOpen.value = show
-    }
-
-    private val _isPrivacyPolicyAccepted = MutableStateFlow(
-        sharedPrefs.getBoolean("is_privacy_policy_accepted", false)
-    )
-    val isPrivacyPolicyAccepted: StateFlow<Boolean> = _isPrivacyPolicyAccepted.asStateFlow()
-
-    fun setPrivacyPolicyAccepted(accepted: Boolean) {
-        _isPrivacyPolicyAccepted.value = accepted
-        sharedPrefs.edit().putBoolean("is_privacy_policy_accepted", accepted).apply()
-    }
-
     private val _activeTab = MutableStateFlow(AppTab.RADIO)
     val activeTab: StateFlow<AppTab> = _activeTab.asStateFlow()
 

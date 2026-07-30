@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -307,7 +308,7 @@ fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
     }
 }
 
-// Scroll to top button which animates visibility
+// Scroll to top button which animates visibility with bouncy scale animation
 @Composable
 fun ScrollToTopButton(
     visible: Boolean,
@@ -316,8 +317,13 @@ fun ScrollToTopButton(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
+        enter = scaleIn(
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        ) + fadeIn(animationSpec = tween(250)),
+        exit = scaleOut(animationSpec = tween(200)) + fadeOut(animationSpec = tween(200)),
         modifier = modifier
     ) {
         FloatingActionButton(
@@ -683,6 +689,9 @@ fun TagChip(text: String, isActive: Boolean) {
 @Composable
 fun PlayerBar(
     currentName: String?,
+    currentArtist: String? = null,
+    currentTrackTitle: String? = null,
+    currentFavicon: String? = null,
     playbackState: PlaybackState,
     onPlayToggle: () -> Unit,
     modifier: Modifier = Modifier
@@ -703,7 +712,7 @@ fun PlayerBar(
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .testTag("player_bar"),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Large Play Button
         Button(
@@ -715,7 +724,7 @@ fun PlayerBar(
             shape = CircleShape,
             contentPadding = PaddingValues(0.dp),
             modifier = Modifier
-                .size(44.dp)
+                .size(42.dp)
                 .testTag("play_toggle_btn")
         ) {
             val icon = when (playbackState) {
@@ -725,24 +734,55 @@ fun PlayerBar(
             Icon(
                 imageVector = icon,
                 contentDescription = "Play Control Toggle",
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        // Running track name (marquee!)
-        Text(
-            text = currentName ?: stringLoc("select_station"),
+        // Running track name (station name on top, artist + track title below)
+        Column(
             modifier = Modifier
                 .weight(1f)
-                .basicMarquee()
-                .testTag("playing_station_title"),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = TextPrimary
-            ),
-            maxLines = 1
-        )
+                .testTag("playing_station_info"),
+            verticalArrangement = Arrangement.Center
+        ) {
+            val stationNameText = currentName ?: stringLoc("select_station")
+            val trackInfoText = when {
+                !currentArtist.isNullOrBlank() && !currentTrackTitle.isNullOrBlank() -> "${currentArtist} — ${currentTrackTitle}"
+                !currentTrackTitle.isNullOrBlank() -> currentTrackTitle
+                !currentArtist.isNullOrBlank() -> currentArtist
+                else -> null
+            }
+
+            Text(
+                text = stationNameText,
+                modifier = Modifier
+                    .basicMarquee()
+                    .testTag("playing_station_title"),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = TextPrimary
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (!trackInfoText.isNullOrBlank()) {
+                Text(
+                    text = trackInfoText,
+                    modifier = Modifier
+                        .basicMarquee()
+                        .testTag("playing_track_info"),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = PrimaryPink
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
 
         // Status Area Indicator
         Row(
@@ -774,30 +814,11 @@ fun PlayerBar(
                 PlaybackState.IDLE -> Icons.Default.Circle
             }
 
-            // Simple conditional spinning animator for buffering status
-            val animateRotationMultiplier = rememberInfiniteTransition(label = "spin_angle")
-            val spinAngle by animateRotationMultiplier.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1200, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "loading_angle"
-            )
-
             Icon(
                 imageVector = statusIcon,
                 contentDescription = "Status indicator",
                 tint = statusColor,
-                modifier = Modifier
-                    .size(16.dp)
-                    .drawBehind {
-                        if (playbackState == PlaybackState.BUFFERING) {
-                            // Apply custom rotation visually via Modifier or raw canvas rotation if needed.
-                            // We will simply let compose handle the rotation easily or keep static icon.
-                        }
-                    }
+                modifier = Modifier.size(16.dp)
             )
 
             Text(
@@ -1314,280 +1335,6 @@ fun LanguageScreen(
 }
 
 @Composable
-fun PrivacyPolicyScreen(
-    isConsentFlow: Boolean = false,
-    onBack: (() -> Unit)? = null,
-    onAccept: (() -> Unit)? = null,
-    onDecline: (() -> Unit)? = null
-) {
-    val context = LocalContext.current
-    var showDeclineDialog by remember { mutableStateOf(false) }
-
-    BackHandler {
-        if (isConsentFlow) {
-            showDeclineDialog = true
-        } else {
-            onBack?.invoke()
-        }
-    }
-
-    if (showDeclineDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeclineDialog = false },
-            title = {
-                Text(
-                    text = stringLoc("privacy_decline_dialog_title"),
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(text = stringLoc("privacy_decline_dialog_msg"))
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeclineDialog = false
-                        (context as? Activity)?.finish()
-                    }
-                ) {
-                    Text(
-                        text = stringLoc("btn_close_app"),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDeclineDialog = false }
-                ) {
-                    Text(text = stringLoc("btn_try_again"))
-                }
-            },
-            containerColor = CardBg,
-            titleContentColor = TextPrimary,
-            textContentColor = TextSecondary
-        )
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Custom Header Bar matching Android standards
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardBg)
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!isConsentFlow) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PrimaryPink,
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .clickable { onBack?.invoke() }
-                            .testTag("privacy_policy_back_button")
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = PrimaryPink,
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .size(24.dp)
-                    )
-                }
-                Text(
-                    text = if (isConsentFlow) stringLoc("privacy_title_first_launch") else stringLoc("setting_privacy_policy"),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryPink,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        val scrollState = rememberScrollState()
-        var hasReachedEnd by remember { mutableStateOf(false) }
-
-        LaunchedEffect(scrollState.value, scrollState.maxValue) {
-            if (scrollState.maxValue > 0 && scrollState.value >= (scrollState.maxValue - 20)) {
-                hasReachedEnd = true
-            } else if (scrollState.maxValue == 0) {
-                hasReachedEnd = true
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(CardBg)
-                        .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = PrimaryPink,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = stringLoc("setting_privacy_policy"),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                    }
-
-                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = stringLoc("privacy_policy_content"),
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp,
-                        color = TextSecondary
-                    )
-                }
-            }
-        }
-
-        if (isConsentFlow) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
-                color = CardBg,
-                tonalElevation = 8.dp,
-                shadowElevation = 8.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    if (!hasReachedEnd) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(PrimaryPink.copy(alpha = 0.1f))
-                                .padding(vertical = 12.dp, horizontal = 16.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDownward,
-                                contentDescription = null,
-                                tint = PrimaryPink,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringLoc("privacy_scroll_hint"),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = PrimaryPink,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    if (onDecline != null) {
-                                        onDecline()
-                                    } else {
-                                        showDeclineDialog = true
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("privacy_policy_decline_button"),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.3f)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = TextSecondary
-                                )
-                            ) {
-                                Text(
-                                    text = stringLoc("privacy_decline_btn"),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Button(
-                                onClick = { onAccept?.invoke() },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("privacy_policy_accept_button"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = PrimaryPink,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = stringLoc("privacy_accept_btn"),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun SocialLinkRow(
     title: String,
     handle: String,
@@ -1687,45 +1434,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 selected = themeSetting,
                 onSelect = { viewModel.setThemeSetting(it) }
             )
-        }
-
-        // Privacy Policy setting row
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardBg)
-                    .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                    .clickable { viewModel.showPrivacyPolicy(true) }
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = PrimaryPink,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = stringLoc("setting_privacy_policy"),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryPink
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Open Privacy Policy",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
 
         // About section

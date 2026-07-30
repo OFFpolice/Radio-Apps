@@ -88,29 +88,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppContent(viewModel: RadioViewModel) {
-    val isPrivacyPolicyAccepted by viewModel.isPrivacyPolicyAccepted.collectAsStateWithLifecycle()
-    val isPrivacyPolicyOpen by viewModel.isPrivacyPolicyOpen.collectAsStateWithLifecycle()
     val isLanguageScreenOpen by viewModel.isLanguageScreenOpen.collectAsStateWithLifecycle()
-
-    if (!isPrivacyPolicyAccepted) {
-        PrivacyPolicyScreen(
-            isConsentFlow = true,
-            onAccept = {
-                viewModel.setPrivacyPolicyAccepted(true)
-            }
-        )
-        return
-    }
-
-    if (isPrivacyPolicyOpen) {
-        PrivacyPolicyScreen(
-            isConsentFlow = false,
-            onBack = {
-                viewModel.showPrivacyPolicy(false)
-            }
-        )
-        return
-    }
 
     if (isLanguageScreenOpen) {
         val languageOptions = remember {
@@ -147,6 +125,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val currentUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
     val currentName by viewModel.playerManager.currentName.collectAsStateWithLifecycle()
     val currentFavicon by viewModel.playerManager.currentFavicon.collectAsStateWithLifecycle()
+    val currentArtist by viewModel.playerManager.currentArtist.collectAsStateWithLifecycle()
+    val currentTrackTitle by viewModel.playerManager.currentTrackTitle.collectAsStateWithLifecycle()
     val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
 
     // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
@@ -177,6 +157,9 @@ fun MainAppContent(viewModel: RadioViewModel) {
             ) {
                 PlayerBar(
                     currentName = currentName,
+                    currentArtist = currentArtist,
+                    currentTrackTitle = currentTrackTitle,
+                    currentFavicon = currentFavicon,
                     playbackState = playbackState,
                     onPlayToggle = { viewModel.togglePlay() }
                 )

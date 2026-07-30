@@ -6,10 +6,15 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.metadata.icy.IcyHeaders
+import androidx.media3.extractor.metadata.icy.IcyInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +52,12 @@ class RadioPlayerManager(private val context: Context) {
     private val _currentFavicon = MutableStateFlow<String?>(null)
     val currentFavicon: StateFlow<String?> = _currentFavicon.asStateFlow()
 
+    private val _currentArtist = MutableStateFlow<String?>(null)
+    val currentArtist: StateFlow<String?> = _currentArtist.asStateFlow()
+
+    private val _currentTrackTitle = MutableStateFlow<String?>(null)
+    val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
+
     // Flag to handle manual pause state from user
     private var isManuallyPaused = false
 
@@ -58,7 +69,6 @@ class RadioPlayerManager(private val context: Context) {
         if (exoPlayer != null) return
 
         // Set low buffering limits so that playback starts immediately!
-        // We set targets for live stream speed optimization with 0.25s start latency.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 1000, // minBufferMs
@@ -73,7 +83,16 @@ class RadioPlayerManager(private val context: Context) {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
 
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("WebRadioBot/1.0 (Android)")
+            .setAllowCrossProtocolRedirects(true)
+            .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(contextToUse)
+            .setDataSourceFactory(httpDataSourceFactory)
+
         exoPlayer = ExoPlayer.Builder(contextToUse)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setAudioAttributes(audioAttributes, true)
             .build()
@@ -115,15 +134,64 @@ class RadioPlayerManager(private val context: Context) {
                             _playbackState.value = PlaybackState.PAUSED
                         }
                     }
+
+                    override fun onMetadata(metadata: Metadata) {
+                        for (i in 0 until metadata.length()) {
+                            val entry = metadata.get(i)
+                            if (entry is IcyInfo) {
+                                entry.title?.let { parseAndSetTrackInfo(it) }
+                            }
+                        }
+                    }
+
+                    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+                        updateMetadata(mediaMetadata)
+                    }
                 })
             }
         sharedPlayer = exoPlayer
+    }
+
+    private fun parseAndSetTrackInfo(rawTitle: String) {
+        val trimmed = rawTitle.trim()
+        if (trimmed.isEmpty()) return
+        val stationName = _currentName.value
+        if (!stationName.isNullOrBlank() && trimmed.equals(stationName, ignoreCase = true)) {
+            return
+        }
+
+        val separator = listOf(" - ", " – ", " — ", " -", "- ").find { trimmed.contains(it) }
+        if (separator != null) {
+            val parts = trimmed.split(separator, limit = 2)
+            if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+                _currentArtist.value = parts[0].trim()
+                _currentTrackTitle.value = parts[1].trim()
+                return
+            }
+        }
+        _currentTrackTitle.value = trimmed
+    }
+
+    private fun updateMetadata(mediaMetadata: MediaMetadata) {
+        val title = mediaMetadata.title?.toString()
+            ?: mediaMetadata.displayTitle?.toString()
+        val artist = mediaMetadata.artist?.toString()
+            ?: mediaMetadata.albumArtist?.toString()
+
+        if (!artist.isNullOrBlank() && artist != "Web Radio") {
+            _currentArtist.value = artist.trim()
+        }
+        if (!title.isNullOrBlank()) {
+            parseAndSetTrackInfo(title)
+        }
     }
 
     fun play(url: String, name: String, favicon: String?) {
         _currentUrl.value = url
         _currentName.value = name
         _currentFavicon.value = favicon
+        _currentArtist.value = null
+        _currentTrackTitle.value = null
         _playbackState.value = PlaybackState.BUFFERING
         isManuallyPaused = false
 
@@ -132,7 +200,6 @@ class RadioPlayerManager(private val context: Context) {
 
             val metadata = MediaMetadata.Builder()
                 .setTitle(name)
-                .setArtist("Web Radio")
                 .apply {
                     if (!favicon.isNullOrBlank()) {
                         setArtworkUri(android.net.Uri.parse(favicon))
