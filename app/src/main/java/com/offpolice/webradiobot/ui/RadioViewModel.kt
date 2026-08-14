@@ -144,17 +144,6 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
                 playerManager.pause()
             }
         }
-
-        // Setup debounced search query emission
-        viewModelScope.launch {
-            _searchQuery
-                .debounce(500)
-                .collect { query ->
-                    if (!isConnecting.value) {
-                        fetchStations(reset = true, query = query)
-                    }
-                }
-        }
     }
 
     fun selectTab(tab: AppTab) {
@@ -163,6 +152,16 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun submitSearch(query: String = _searchQuery.value) {
+        _searchQuery.value = query
+        fetchStations(reset = true, query = query)
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+        fetchStations(reset = true, query = "")
     }
 
     fun fetchStations(reset: Boolean, query: String = searchQuery.value) {

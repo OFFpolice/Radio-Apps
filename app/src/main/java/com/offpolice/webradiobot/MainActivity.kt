@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -21,6 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.offpolice.webradiobot.ui.*
 import com.offpolice.webradiobot.ui.theme.*
@@ -128,15 +132,18 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val currentArtist by viewModel.playerManager.currentArtist.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.playerManager.currentTrackTitle.collectAsStateWithLifecycle()
     val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
 
     // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
     if (activeTab != AppTab.RADIO) {
         BackHandler {
+            focusManager.clearFocus()
             viewModel.selectTab(AppTab.RADIO)
         }
     } else if (searchQuery.isNotEmpty()) {
         BackHandler {
-            viewModel.updateSearchQuery("")
+            focusManager.clearFocus()
+            viewModel.clearSearch()
         }
     }
 
@@ -146,6 +153,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
                 activeTab = activeTab,
                 searchQuery = searchQuery,
                 onSearchChange = { viewModel.updateSearchQuery(it) },
+                onSearchSubmit = { viewModel.submitSearch(it) },
                 isSearchVisible = activeTab == AppTab.RADIO
             )
         },
@@ -155,6 +163,10 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     .background(CardBg)
                     .navigationBarsPadding()
             ) {
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = DividerColor
+                )
                 PlayerBar(
                     currentName = currentName,
                     currentArtist = currentArtist,
@@ -163,20 +175,37 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     playbackState = playbackState,
                     onPlayToggle = { viewModel.togglePlay() }
                 )
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = DividerColor
+                )
                 AppBottomNav(
                     activeTab = activeTab,
-                    onTabSelect = { viewModel.selectTab(it) }
+                    onTabSelect = {
+                        focusManager.clearFocus()
+                        viewModel.selectTab(it)
+                    }
                 )
             }
         },
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                })
+            }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                }
         ) {
             when (activeTab) {
                 AppTab.RADIO -> {

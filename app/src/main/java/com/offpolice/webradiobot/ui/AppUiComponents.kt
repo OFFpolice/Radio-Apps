@@ -9,11 +9,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,11 +41,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -350,17 +357,12 @@ fun AppHeader(
     activeTab: AppTab,
     searchQuery: String,
     onSearchChange: (String) -> Unit,
+    onSearchSubmit: (String) -> Unit,
     isSearchVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-
-    // Reactively clear focus and hide keyboard if search is cleared
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.isEmpty()) {
-            focusManager.clearFocus()
-        }
-    }
+    var localText by remember(searchQuery) { mutableStateOf(searchQuery) }
 
     val title = when (activeTab) {
         AppTab.RADIO -> "WebRadioBot"
@@ -372,78 +374,103 @@ fun AppHeader(
         modifier = modifier
             .background(CardBg)
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = title,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryPink,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        if (isSearchVisible) {
-            Spacer(modifier = Modifier.height(8.dp))
-            var isFocused by remember { mutableStateOf(false) }
-            val borderColor = PrimaryPink
-            val borderWidth = 1.5.dp
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(SearchBg)
-                    .border(borderWidth, borderColor, RoundedCornerShape(26.dp))
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search Icon",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(24.dp)
+                Text(
+                    text = title,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryPink,
+                    textAlign = TextAlign.Center
                 )
+            }
 
-                Spacer(modifier = Modifier.width(8.dp))
+            if (isSearchVisible) {
+                Spacer(modifier = Modifier.height(8.dp))
+                var isFocused by remember { mutableStateOf(false) }
+                val borderColor = PrimaryPink
+                val borderWidth = 1.5.dp
 
-                BasicTextField2_Placeholder(
-                    value = searchQuery,
-                    onValueChange = onSearchChange,
-                    placeholderText = stringLoc("search_placeholder"),
-                    onFocusChanged = { isFocused = it },
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (searchQuery.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(SearchBg)
+                        .border(borderWidth, borderColor, RoundedCornerShape(26.dp))
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
-                        onClick = { onSearchChange("") },
+                        onClick = {
+                            focusManager.clearFocus()
+                            onSearchSubmit(localText)
+                        },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear Search",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search Icon",
+                            tint = if (isFocused) PrimaryPink else TextSecondary,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    BasicTextField2_Placeholder(
+                        value = localText,
+                        onValueChange = {
+                            localText = it
+                            onSearchChange(it)
+                        },
+                        onSearch = {
+                            focusManager.clearFocus()
+                            onSearchSubmit(localText)
+                        },
+                        placeholderText = stringLoc("search_placeholder"),
+                        onFocusChanged = { isFocused = it },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (localText.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                localText = ""
+                                onSearchChange("")
+                                onSearchSubmit("")
+                                focusManager.clearFocus()
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear Search",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
+                Spacer(modifier = Modifier.height(4.dp))
             }
-            Spacer(modifier = Modifier.height(4.dp))
         }
+        HorizontalDivider(thickness = 1.dp, color = DividerColor)
     }
 }
 
-// Quick fallback basic textfield placeholder implementation
+// Quick fallback basic textfield placeholder implementation with ImeAction.Search
 @Composable
 fun BasicTextField2_Placeholder(
     value: String,
     onValueChange: (String) -> Unit,
+    onSearch: () -> Unit,
     placeholderText: String,
     onFocusChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -464,6 +491,15 @@ fun BasicTextField2_Placeholder(
                 fontSize = 16.sp
             ),
             singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Search,
+                keyboardType = KeyboardType.Text
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    onSearch()
+                }
+            ),
             cursorBrush = SolidColor(PrimaryPink),
             modifier = Modifier
                 .fillMaxWidth()
@@ -486,8 +522,7 @@ fun SectionHeader(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
@@ -502,6 +537,12 @@ fun SectionHeader(
             color = TextSecondary,
             fontSize = 14.sp,
             letterSpacing = 0.5.sp
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            thickness = 1.dp,
+            color = DividerColor
         )
     }
 }
@@ -520,6 +561,7 @@ fun StationCard(
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false
 ) {
+    val currentDividerColor = DividerColor
     val cardBackground = if (isActive) ActiveCardBg else CardBg
     val borderBrush = if (isActive) {
         val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
@@ -536,10 +578,8 @@ fun StationCard(
             colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
         )
     } else {
-        remember {
-            Brush.linearGradient(
-                colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
-            )
+        remember(currentDividerColor) {
+            SolidColor(currentDividerColor)
         }
     }
 
@@ -696,19 +736,10 @@ fun PlayerBar(
     onPlayToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val borderColor = TextSecondary.copy(alpha = 0.12f)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(CardBg)
-            .drawBehind {
-                drawLine(
-                    color = borderColor,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .testTag("player_bar"),
         verticalAlignment = Alignment.CenterVertically,
@@ -952,6 +983,13 @@ fun RadioTab(
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            focusManager.clearFocus()
+        }
+    }
 
     // Precompute a hashed Set of favorite station URLs to enable O(1) lookups during scroll
     val favoriteUrls = remember(favorites) {
@@ -1063,6 +1101,13 @@ fun FavoritesTab(
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            focusManager.clearFocus()
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         if (favorites.isEmpty()) {
@@ -1131,7 +1176,7 @@ fun <T> SettingsOptionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
-            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -1142,7 +1187,14 @@ fun <T> SettingsOptionCard(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        options.forEach { (option, label, subtitle) ->
+        options.forEachIndexed { index, (option, label, subtitle) ->
+            if (index > 0) {
+                HorizontalDivider(
+                    thickness = 0.8.dp,
+                    color = DividerColor,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
             val isSelected = option == selected
             Row(
                 modifier = Modifier
@@ -1196,7 +1248,7 @@ fun LanguageSelectorRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
-            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1244,15 +1296,16 @@ fun LanguageScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Custom Header Bar matching Android standards & screenshot
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(CardBg)
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Box(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1274,6 +1327,7 @@ fun LanguageScreen(
                     textAlign = TextAlign.Center
                 )
             }
+            HorizontalDivider(thickness = 1.dp, color = DividerColor)
         }
 
         LazyColumn(
@@ -1286,10 +1340,17 @@ fun LanguageScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(CardBg)
-                        .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                        .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
                         .padding(8.dp)
                 ) {
-                    options.forEach { (option, labelKey, hintKey) ->
+                    options.forEachIndexed { index, (option, labelKey, hintKey) ->
+                        if (index > 0) {
+                            HorizontalDivider(
+                                thickness = 0.8.dp,
+                                color = DividerColor,
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                        }
                         val isSelected = option == selected
                         Row(
                             modifier = Modifier
@@ -1443,7 +1504,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(CardBg)
-                    .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                    .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -1476,7 +1537,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
+                HorizontalDivider(color = DividerColor, thickness = 1.dp)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -1530,7 +1591,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 1.dp)
+                HorizontalDivider(color = DividerColor, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Dev API URL element

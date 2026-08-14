@@ -12,7 +12,8 @@ class AppThemeColors(
     val activeCardBg: Color,
     val textPrimary: Color,
     val textSecondary: Color,
-    val textMuted: Color
+    val textMuted: Color,
+    val divider: Color
 )
 
 val DarkThemeColors = AppThemeColors(
@@ -22,7 +23,8 @@ val DarkThemeColors = AppThemeColors(
     activeCardBg = Color(0x26C2185B), // 15% opacity
     textPrimary = Color(0xFFFFFFFF),
     textSecondary = Color(0xFFB0B0B0),
-    textMuted = Color(0xFF666666)
+    textMuted = Color(0xFF666666),
+    divider = Color(0x33FFFFFF) // Subtle high-contrast light divider for dark mode
 )
 
 val LightThemeColors = AppThemeColors(
@@ -31,8 +33,9 @@ val LightThemeColors = AppThemeColors(
     searchBg = Color(0xFFE2E2E5),
     activeCardBg = Color(0x1CC2185B), // Elegant soft pink tint
     textPrimary = Color(0xFF000000),
-    textSecondary = Color(0xFF000000),
-    textMuted = Color(0xFF000000)
+    textSecondary = Color(0xFF333333),
+    textMuted = Color(0xFF777777),
+    divider = Color(0x24000000) // Subtle dark divider for light mode
 )
 
 val LocalAppThemeColors = staticCompositionLocalOf { DarkThemeColors }
@@ -42,6 +45,7 @@ val DarkBg @Composable get() = LocalAppThemeColors.current.bg
 val CardBg @Composable get() = LocalAppThemeColors.current.cardBg
 val SearchBg @Composable get() = LocalAppThemeColors.current.searchBg
 val ActiveCardBg @Composable get() = LocalAppThemeColors.current.activeCardBg
+val DividerColor @Composable get() = LocalAppThemeColors.current.divider
 
 val PrimaryPink = Color(0xFFE91E63)
 val SecondaryPink = Color(0xFFC2185B)
