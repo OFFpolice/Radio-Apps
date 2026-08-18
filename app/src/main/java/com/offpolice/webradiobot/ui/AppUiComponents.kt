@@ -538,12 +538,6 @@ fun SectionHeader(
             fontSize = 14.sp,
             letterSpacing = 0.5.sp
         )
-        Spacer(modifier = Modifier.width(12.dp))
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            thickness = 1.dp,
-            color = DividerColor
-        )
     }
 }
 
@@ -1187,14 +1181,7 @@ fun <T> SettingsOptionCard(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        options.forEachIndexed { index, (option, label, subtitle) ->
-            if (index > 0) {
-                HorizontalDivider(
-                    thickness = 0.8.dp,
-                    color = DividerColor,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
+        options.forEach { (option, label, subtitle) ->
             val isSelected = option == selected
             Row(
                 modifier = Modifier
@@ -1343,14 +1330,7 @@ fun LanguageScreen(
                         .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
                         .padding(8.dp)
                 ) {
-                    options.forEachIndexed { index, (option, labelKey, hintKey) ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                thickness = 0.8.dp,
-                                color = DividerColor,
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                        }
+                    options.forEach { (option, labelKey, hintKey) ->
                         val isSelected = option == selected
                         Row(
                             modifier = Modifier
@@ -1537,10 +1517,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                HorizontalDivider(color = DividerColor, thickness = 1.dp)
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 // Follow Author title
                 Text(
                     text = stringLoc("socials_heading").uppercase(),
@@ -1590,8 +1566,6 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     uriHandler.openUri("https://t.me/Web_radio_bot/app")
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = DividerColor, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Dev API URL element
