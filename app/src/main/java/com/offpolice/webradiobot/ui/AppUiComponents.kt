@@ -555,7 +555,6 @@ fun StationCard(
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false
 ) {
-    val currentDividerColor = DividerColor
     val cardBackground = if (isActive) ActiveCardBg else CardBg
     val borderBrush = if (isActive) {
         val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
@@ -572,8 +571,10 @@ fun StationCard(
             colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
         )
     } else {
-        remember(currentDividerColor) {
-            SolidColor(currentDividerColor)
+        remember {
+            Brush.linearGradient(
+                colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
+            )
         }
     }
 
@@ -1170,7 +1171,7 @@ fun <T> SettingsOptionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
-            .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -1235,7 +1236,7 @@ fun LanguageSelectorRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
-            .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1327,7 +1328,7 @@ fun LanguageScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(CardBg)
-                        .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
+                        .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                         .padding(8.dp)
                 ) {
                     options.forEach { (option, labelKey, hintKey) ->
@@ -1484,7 +1485,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(CardBg)
-                    .border(1.dp, DividerColor, RoundedCornerShape(16.dp))
+                    .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
