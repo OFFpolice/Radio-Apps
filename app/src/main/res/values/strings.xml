@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">WebRadioBot</string>
+    <string name="playback_channel_name">Воспроизведение радио</string>
+    <string name="playback_channel_desc">Управление воспроизведением и статус станции</string>
 </resources>

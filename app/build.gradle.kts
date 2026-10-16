@@ -20,8 +20,7 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     ndk {
-      abiFilters.add("armeabi-v7a")
-      abiFilters.add("arm64-v8a")
+      abiFilters.addAll(listOf("arm64-v8a"))
     }
   }
 
@@ -50,10 +49,9 @@ android {
       signingConfig = signingConfigs.getByName("debugConfig")
     }
     debug {
-      isDebuggable = false
-      isMinifyEnabled = true
-      isShrinkResources = true
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      isDebuggable = true
+      isMinifyEnabled = false
+      isShrinkResources = false
       signingConfig = signingConfigs.getByName("debugConfig")
     }
   }
@@ -100,8 +98,8 @@ dependencies {
   // implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
-  implementation("androidx.media3:media3-exoplayer:1.3.1")
-  implementation("androidx.media3:media3-session:1.3.1")
+  implementation("androidx.media3:media3-exoplayer:1.8.0")
+  implementation("androidx.media3:media3-session:1.8.0")
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)

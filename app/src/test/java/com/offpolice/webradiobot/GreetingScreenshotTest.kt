@@ -2,6 +2,8 @@ package com.offpolice.webradiobot
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import com.offpolice.webradiobot.player.PlaybackState
+import com.offpolice.webradiobot.ui.PlayerBar
 import com.offpolice.webradiobot.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -14,15 +16,26 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [34])
 class GreetingScreenshotTest {
 
   @get:Rule val composeTestRule = createComposeRule()
 
   @Test
-  fun greeting_screenshot() {
-    composeTestRule.setContent { MyApplicationTheme { Greeting("Robolectric") } }
+  fun player_bar_screenshot() {
+    composeTestRule.setContent {
+      MyApplicationTheme {
+        PlayerBar(
+          currentName = "Radio Paradise",
+          currentArtist = "Daft Punk",
+          currentTrackTitle = "Get Lucky",
+          currentFavicon = null,
+          playbackState = PlaybackState.PLAYING,
+          onPlayToggle = {}
+        )
+      }
+    }
 
-    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
+    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/player_bar.png")
   }
 }

@@ -10,7 +10,9 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
 class RadioRepository(context: Context) {
-    private val favoriteStationDao = AppDatabase.getDatabase(context).favoriteStationDao()
+    private val database = AppDatabase.getDatabase(context)
+    private val favoriteStationDao = database.favoriteStationDao()
+    private val cachedStationDao = database.cachedStationDao()
 
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
@@ -72,4 +74,39 @@ class RadioRepository(context: Context) {
     }
 
     fun isFavorite(urlResolved: String): Flow<Boolean> = favoriteStationDao.isFavorite(urlResolved)
+ 
+    suspend fun getCachedStations(): List<ApiStation> {
+        return try {
+            cachedStationDao.getCachedStations().map { cached ->
+                ApiStation(
+                    stationuuid = cached.stationuuid,
+                    name = cached.name,
+                    url_resolved = cached.urlResolved,
+                    tags = cached.tags,
+                    favicon = cached.favicon
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun saveCachedStations(stations: List<ApiStation>) {
+        try {
+            val entities = stations.mapIndexed { index, apiStation ->
+                CachedStation(
+                    urlResolved = apiStation.url_resolved,
+                    stationuuid = apiStation.stationuuid,
+                    name = apiStation.name,
+                    tags = apiStation.tags,
+                    favicon = apiStation.favicon,
+                    position = index
+                )
+            }
+            cachedStationDao.clearCachedStations()
+            cachedStationDao.insertStations(entities)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

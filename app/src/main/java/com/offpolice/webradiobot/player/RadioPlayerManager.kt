@@ -2,6 +2,9 @@ package com.offpolice.webradiobot.player
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Handler
+import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -9,12 +12,17 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.extractor.metadata.icy.IcyHeaders
+import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.extractor.metadata.icy.IcyInfo
+import java.util.ArrayList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,15 +35,24 @@ enum class PlaybackState {
     ERROR
 }
 
-class RadioPlayerManager(private val context: Context) {
-    private val contextToUse = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-        context.createAttributionContext("webradio")
-    } else {
-        context
-    }
+@OptIn(UnstableApi::class)
+class RadioPlayerManager private constructor(private val context: Context) {
+
+    private val appContext = context.applicationContext
     private var exoPlayer: ExoPlayer? = null
 
     companion object {
+        @Volatile
+        private var instance: RadioPlayerManager? = null
+
+        fun getInstance(context: Context): RadioPlayerManager {
+            return instance ?: synchronized(this) {
+                instance ?: RadioPlayerManager(context.applicationContext).also {
+                    instance = it
+                }
+            }
+        }
+
         @JvmStatic
         var sharedPlayer: ExoPlayer? = null
     }
@@ -58,17 +75,37 @@ class RadioPlayerManager(private val context: Context) {
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
 
-    // Flag to handle manual pause state from user
-    private var isManuallyPaused = false
+    // Navigation callbacks for next/previous station
+    var onNextStation: (() -> Unit)? = null
+    var onPreviousStation: (() -> Unit)? = null
 
-    init {
-        initializePlayer()
+    fun playNextStation() {
+        onNextStation?.invoke()
     }
 
-    private fun initializePlayer() {
-        if (exoPlayer != null) return
+    fun playPreviousStation() {
+        onPreviousStation?.invoke()
+    }
 
-        // Set low buffering limits so that playback starts immediately!
+    // Flag to track explicit manual pause from user
+    private var isManuallyPaused = false
+
+    fun initStationWithoutPlayback(url: String, name: String, favicon: String?) {
+        if (_currentUrl.value == null) {
+            _currentUrl.value = url
+            _currentName.value = name
+            _currentFavicon.value = favicon
+            _currentArtist.value = null
+            _currentTrackTitle.value = null
+            _playbackState.value = PlaybackState.PAUSED
+            isManuallyPaused = true
+        }
+    }
+
+    fun getOrInitPlayer(): ExoPlayer {
+        exoPlayer?.let { return it }
+
+        // Low buffering limits for near-instant radio stream start
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 1000, // minBufferMs
@@ -88,10 +125,45 @@ class RadioPlayerManager(private val context: Context) {
             .setAllowCrossProtocolRedirects(true)
             .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
 
-        val mediaSourceFactory = DefaultMediaSourceFactory(contextToUse)
+        val mediaSourceFactory = DefaultMediaSourceFactory(appContext)
             .setDataSourceFactory(httpDataSourceFactory)
 
-        exoPlayer = ExoPlayer.Builder(contextToUse)
+        // Custom MediaCodecSelector prioritizing OMX software decoders to avoid CCodec hardware query errors
+        val safeCodecSelector = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+            val decoders = MediaCodecSelector.DEFAULT.getDecoderInfos(
+                mimeType,
+                requiresSecureDecoder,
+                requiresTunnelingDecoder
+            )
+            decoders.sortedWith(
+                compareByDescending<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> { it.name.startsWith("OMX.google.") }
+                    .thenByDescending { it.softwareOnly }
+                    .thenByDescending { it.name.startsWith("c2.android.") }
+            )
+        }
+
+        // Audio-only renderer factory skips video renderers to avoid emulator Codec2 errors
+        val renderersFactory = object : DefaultRenderersFactory(appContext) {
+            override fun buildVideoRenderers(
+                context: Context,
+                extensionRendererMode: Int,
+                mediaCodecSelector: MediaCodecSelector,
+                enableDecoderFallback: Boolean,
+                eventHandler: Handler,
+                eventListener: VideoRendererEventListener,
+                allowedVideoJoiningTimeMs: Long,
+                out: ArrayList<Renderer>
+            ) {
+                // Audio-only radio streaming: skip video renderers
+            }
+        }.apply {
+            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+            setEnableDecoderFallback(true)
+            setMediaCodecSelector(safeCodecSelector)
+            forceDisableMediaCodecAsynchronousQueueing()
+        }
+
+        val player = ExoPlayer.Builder(appContext, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setAudioAttributes(audioAttributes, true)
@@ -113,9 +185,7 @@ class RadioPlayerManager(private val context: Context) {
                                     _playbackState.value = PlaybackState.PAUSED
                                 }
                             }
-                            Player.STATE_ENDED -> {
-                                _playbackState.value = PlaybackState.IDLE
-                            }
+                            Player.STATE_ENDED,
                             Player.STATE_IDLE -> {
                                 _playbackState.value = PlaybackState.IDLE
                             }
@@ -127,8 +197,23 @@ class RadioPlayerManager(private val context: Context) {
                         _playbackState.value = PlaybackState.ERROR
                     }
 
+                    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                        if (!playWhenReady) {
+                            isManuallyPaused = true
+                            _playbackState.value = PlaybackState.PAUSED
+                        } else {
+                            isManuallyPaused = false
+                            if (exoPlayer?.playbackState == Player.STATE_READY) {
+                                _playbackState.value = PlaybackState.PLAYING
+                            } else {
+                                _playbackState.value = PlaybackState.BUFFERING
+                            }
+                        }
+                    }
+
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         if (isPlaying) {
+                            isManuallyPaused = false
                             _playbackState.value = PlaybackState.PLAYING
                         } else if (_playbackState.value == PlaybackState.PLAYING) {
                             _playbackState.value = PlaybackState.PAUSED
@@ -145,11 +230,14 @@ class RadioPlayerManager(private val context: Context) {
                     }
 
                     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-                        updateMetadata(mediaMetadata)
+                        updateMetadataFromExo(mediaMetadata)
                     }
                 })
             }
-        sharedPlayer = exoPlayer
+
+        exoPlayer = player
+        sharedPlayer = player
+        return player
     }
 
     private fun parseAndSetTrackInfo(rawTitle: String) {
@@ -160,19 +248,23 @@ class RadioPlayerManager(private val context: Context) {
             return
         }
 
+        var artist: String? = null
+        var trackTitle: String = trimmed
         val separator = listOf(" - ", " – ", " — ", " -", "- ").find { trimmed.contains(it) }
         if (separator != null) {
             val parts = trimmed.split(separator, limit = 2)
             if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
-                _currentArtist.value = parts[0].trim()
-                _currentTrackTitle.value = parts[1].trim()
-                return
+                artist = parts[0].trim()
+                trackTitle = parts[1].trim()
             }
         }
-        _currentTrackTitle.value = trimmed
+        _currentArtist.value = artist
+        _currentTrackTitle.value = trackTitle
+
+        updateSessionMetadata(artist, trackTitle)
     }
 
-    private fun updateMetadata(mediaMetadata: MediaMetadata) {
+    private fun updateMetadataFromExo(mediaMetadata: MediaMetadata) {
         val title = mediaMetadata.title?.toString()
             ?: mediaMetadata.displayTitle?.toString()
         val artist = mediaMetadata.artist?.toString()
@@ -186,6 +278,43 @@ class RadioPlayerManager(private val context: Context) {
         }
     }
 
+    private fun updateSessionMetadata(artist: String?, trackTitle: String?) {
+        val stationName = _currentName.value ?: "Web Radio"
+        val favicon = _currentFavicon.value
+        val displayTitle = if (!trackTitle.isNullOrBlank()) trackTitle else stationName
+        val displayArtist = if (!trackTitle.isNullOrBlank()) {
+            if (!artist.isNullOrBlank()) artist else stationName
+        } else {
+            artist ?: "Web Radio"
+        }
+
+        val updatedMetadata = MediaMetadata.Builder()
+            .setTitle(displayTitle)
+            .setDisplayTitle(displayTitle)
+            .setArtist(displayArtist)
+            .apply {
+                if (!favicon.isNullOrBlank()) {
+                    setArtworkUri(Uri.parse(favicon))
+                }
+            }
+            .build()
+
+        exoPlayer?.playlistMetadata = updatedMetadata
+    }
+
+    fun startPlaybackService() {
+        try {
+            val serviceIntent = Intent(context, RadioPlaybackService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun play(url: String, name: String, favicon: String?) {
         _currentUrl.value = url
         _currentName.value = name
@@ -196,13 +325,16 @@ class RadioPlayerManager(private val context: Context) {
         isManuallyPaused = false
 
         try {
-            initializePlayer()
+            val player = getOrInitPlayer()
+            startPlaybackService()
 
             val metadata = MediaMetadata.Builder()
                 .setTitle(name)
+                .setDisplayTitle(name)
+                .setArtist("Web Radio")
                 .apply {
                     if (!favicon.isNullOrBlank()) {
-                        setArtworkUri(android.net.Uri.parse(favicon))
+                        setArtworkUri(Uri.parse(favicon))
                     }
                 }
                 .build()
@@ -212,10 +344,11 @@ class RadioPlayerManager(private val context: Context) {
                 .setMediaMetadata(metadata)
                 .build()
 
-            exoPlayer?.apply {
+            player.apply {
                 stop()
                 clearMediaItems()
                 setMediaItem(mediaItem)
+                playlistMetadata = metadata
                 prepare()
                 playWhenReady = true
             }
@@ -245,13 +378,14 @@ class RadioPlayerManager(private val context: Context) {
         }
         isManuallyPaused = false
         try {
-            initializePlayer()
-            exoPlayer?.apply {
-                if (_playbackState.value == PlaybackState.PAUSED) {
-                    playWhenReady = true
-                } else {
-                    play(url, _currentName.value ?: "Station", _currentFavicon.value)
-                }
+            val player = getOrInitPlayer()
+            startPlaybackService()
+
+            if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED || player.mediaItemCount == 0) {
+                play(url, _currentName.value ?: "Station", _currentFavicon.value)
+            } else {
+                player.playWhenReady = true
+                player.prepare()
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -266,6 +400,12 @@ class RadioPlayerManager(private val context: Context) {
         } else {
             resume()
         }
+    }
+
+    fun onServiceDestroyed() {
+        exoPlayer = null
+        sharedPlayer = null
+        _playbackState.value = PlaybackState.IDLE
     }
 
     fun release() {

@@ -11,6 +11,7 @@ import com.offpolice.webradiobot.data.FavoriteStation
 import com.offpolice.webradiobot.data.RadioRepository
 import com.offpolice.webradiobot.player.PlaybackState
 import com.offpolice.webradiobot.player.RadioPlayerManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,6 +22,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,7 +37,7 @@ enum class AppTab {
 class RadioViewModel(private val application: Application) : AndroidViewModel(application) {
 
     private val repository = RadioRepository(application)
-    val playerManager = RadioPlayerManager(application)
+    val playerManager = RadioPlayerManager.getInstance(application)
 
     private val sharedPrefs = application.getSharedPreferences("webradio_prefs", Context.MODE_PRIVATE)
 
@@ -100,48 +103,57 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private val _connectionState = MutableStateFlow(ConnectionState.INITIALIZING)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    private val _isConnecting = MutableStateFlow(true)
+    private val _isConnecting = MutableStateFlow(false)
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
 
     private var offset = 0
     private val LIMIT = 100
     private var searchJob: Job? = null
+    private var isFetchingPage = false
+    private val loadedStationUrls = HashSet<String>()
 
     init {
-        // Run setup connection
+        playerManager.onNextStation = {
+            playNextStation()
+        }
+        playerManager.onPreviousStation = {
+            playPreviousStation()
+        }
+
+        // 1. Instantly load cached stations from Room if available
         viewModelScope.launch {
-            _isConnecting.value = true
-            _connectionProgress.value = 15
-            _connectionState.value = ConnectionState.LOADING_RESOURCES
-            delay(200)
+            val cached = repository.getCachedStations()
+            if (_stations.value.isEmpty() && cached.isNotEmpty()) {
+                _stations.value = cached
+                for (s in cached) {
+                    val key = s.stationuuid?.ifBlank { null } ?: s.url_resolved
+                    loadedStationUrls.add(key)
+                }
+            }
+        }
 
-            _connectionProgress.value = 45
-            _connectionState.value = ConnectionState.CONNECTING_SERVER
-            delay(200)
+        // 2. Debounce search input (350ms)
+        viewModelScope.launch {
+            _searchQuery
+                .drop(1)
+                .debounce(350L)
+                .distinctUntilChanged()
+                .collect { query ->
+                    fetchStations(reset = true, query = query)
+                }
+        }
 
+        // 3. Resolve active server and fetch fresh catalog in background without blocking UI
+        viewModelScope.launch {
             repository.resolveActiveServer()
-            _connectionProgress.value = 80
-            _connectionState.value = ConnectionState.GETTING_STATIONS
-
-            // Pre-load initial stations list
             fetchStations(reset = true, query = "")
 
-            _connectionProgress.value = 100
-            _connectionState.value = ConnectionState.READY
-            delay(300)
-            _isConnecting.value = false
-
-            // Restore last played station
+            // Restore last played station into UI only if the user had previously selected one
             val lastUrl = sharedPrefs.getString("last_url", null)
             val lastName = sharedPrefs.getString("last_name", null)
             val lastFavicon = sharedPrefs.getString("last_favicon", null)
             if (lastUrl != null && lastName != null) {
-                playerManager.play(lastUrl, lastName, lastFavicon)
-                playerManager.pause()
-            } else if (stations.value.isNotEmpty()) {
-                val first = stations.value.first()
-                playerManager.play(first.url_resolved, first.name, first.favicon)
-                playerManager.pause()
+                playerManager.initStationWithoutPlayback(lastUrl, lastName, lastFavicon)
             }
         }
     }
@@ -165,42 +177,61 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     }
 
     fun fetchStations(reset: Boolean, query: String = searchQuery.value) {
-        if (_isLoading.value) return
-        if (!reset && !_hasMore.value) return
-
-        _isLoading.value = true
-        _apiError.value = null
-
         if (reset) {
+            // Cancel previous in-flight search request immediately
+            searchJob?.cancel()
+            _isLoading.value = true
+            _apiError.value = null
             offset = 0
             _hasMore.value = true
+            loadedStationUrls.clear()
+            _stations.value = emptyList()
+        } else {
+            // For next pages: do not fire if already fetching or reached end
+            if (_isLoading.value || isFetchingPage || !_hasMore.value) return
+            _isLoading.value = true
+            _apiError.value = null
         }
 
-        searchJob?.cancel()
         searchJob = viewModelScope.launch {
+            if (!reset) isFetchingPage = true
             try {
-                val processed = withContext(Dispatchers.Default) {
-                    val results = repository.searchStations(query, LIMIT, offset)
+                val currentOffset = offset
+                val processed = withContext(Dispatchers.IO) {
+                    val results = repository.searchStations(query, LIMIT, currentOffset)
                     val validResults = results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
 
+                    val newUniqueResults = ArrayList<ApiStation>(validResults.size)
+                    for (item in validResults) {
+                        val key = item.stationuuid?.ifBlank { null } ?: item.url_resolved
+                        if (loadedStationUrls.add(key)) {
+                            newUniqueResults.add(item)
+                        }
+                    }
+
                     if (reset) {
-                        Pair(validResults.distinctBy { it.url_resolved }, validResults.size)
+                        Pair(newUniqueResults, validResults.size)
                     } else {
-                        val currentList = _stations.value
-                        val existingUrls = currentList.map { it.url_resolved }.toSet()
-                        val newUniqueResults = validResults.filter { !existingUrls.contains(it.url_resolved) }
-                        Pair(currentList + newUniqueResults, validResults.size)
+                        Pair(_stations.value + newUniqueResults, validResults.size)
                     }
                 }
 
                 _stations.value = processed.first
                 offset += processed.second
                 _hasMore.value = processed.second == LIMIT
+
+                // Cache first page of default catalog for fast offline startup
+                if (reset && query.isBlank() && processed.first.isNotEmpty()) {
+                    repository.saveCachedStations(processed.first.take(50))
+                }
+            } catch (e: CancellationException) {
+                // Search cancelled by new query - do not treat as error
             } catch (e: Exception) {
                 e.printStackTrace()
                 _apiError.value = "Ошибка сети при загрузке станций"
             } finally {
                 _isLoading.value = false
+                isFetchingPage = false
             }
         }
     }
@@ -231,9 +262,31 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         playerManager.togglePlay()
     }
 
+    fun playNextStation() {
+        val list = _stations.value
+        if (list.isEmpty()) return
+        val currentUrl = playerManager.currentUrl.value
+        val currentIndex = list.indexOfFirst { it.url_resolved == currentUrl }
+        val nextIndex = if (currentIndex in 0 until list.size - 1) currentIndex + 1 else 0
+        val station = list[nextIndex]
+        selectStation(station.url_resolved, station.name, station.favicon)
+    }
+
+    fun playPreviousStation() {
+        val list = _stations.value
+        if (list.isEmpty()) return
+        val currentUrl = playerManager.currentUrl.value
+        val currentIndex = list.indexOfFirst { it.url_resolved == currentUrl }
+        val prevIndex = if (currentIndex > 0) currentIndex - 1 else list.size - 1
+        val station = list[prevIndex]
+        selectStation(station.url_resolved, station.name, station.favicon)
+    }
+
     override fun onCleared() {
         super.onCleared()
-        playerManager.release()
+        playerManager.onNextStation = null
+        playerManager.onPreviousStation = null
+        // Player lifecycle is managed by RadioPlaybackService to support background playback
     }
 
     // Custom Factory for the ViewModel

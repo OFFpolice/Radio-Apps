@@ -1,12 +1,18 @@
 package com.offpolice.webradiobot
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +20,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,20 +38,28 @@ import com.offpolice.webradiobot.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
-    override fun attachBaseContext(newBase: Context?) {
-        val nextBase = if (newBase != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            newBase.createAttributionContext("webradio")
-        } else {
-            newBase
-        }
-        super.attachBaseContext(nextBase)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         setContent {
+            // Request notification permission on Android 13+ for media controls and notifications
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val notificationLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { /* user handled permission dialog */ }
+
+                LaunchedEffect(Unit) {
+                    if (ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            }
+
             // Initialize the ViewModel using the custom factory
             val viewModel: RadioViewModel by viewModels {
                 RadioViewModel.Factory(application)
@@ -57,33 +72,7 @@ class MainActivity : ComponentActivity() {
                 LocalLanguageSetting provides languageSetting
             ) {
                 MyApplicationTheme(themeSetting = themeSetting) {
-                    val isConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
-                    val connectionProgress by viewModel.connectionProgress.collectAsStateWithLifecycle()
-                    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
-
-                    AnimatedContent(
-                        targetState = isConnecting,
-                        transitionSpec = {
-                            fadeIn() togetherWith fadeOut()
-                        },
-                        label = "connection_transition"
-                    ) { connecting ->
-                        if (connecting) {
-                            val statusText = when (connectionState) {
-                                ConnectionState.INITIALIZING -> stringLoc("state_init")
-                                ConnectionState.LOADING_RESOURCES -> stringLoc("state_resources")
-                                ConnectionState.CONNECTING_SERVER -> stringLoc("state_connecting")
-                                ConnectionState.GETTING_STATIONS -> stringLoc("state_stations")
-                                ConnectionState.READY -> stringLoc("state_ready")
-                            }
-                            FullScreenLoadingScreen(
-                                progress = connectionProgress / 100f,
-                                statusText = statusText
-                            )
-                        } else {
-                            MainAppContent(viewModel = viewModel)
-                        }
-                    }
+                    MainAppContent(viewModel = viewModel)
                 }
             }
         }
@@ -146,6 +135,9 @@ fun MainAppContent(viewModel: RadioViewModel) {
             viewModel.clearSearch()
         }
     }
+
+    val radioListState = rememberLazyListState()
+    val favoritesListState = rememberLazyListState()
 
     Scaffold(
         topBar = {
@@ -216,6 +208,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         playbackState = playbackState,
                         isLoading = isLoading,
                         hasMore = hasMore,
+                        listState = radioListState,
+                        searchQuery = searchQuery,
                         onStationSelect = { station ->
                             viewModel.selectStation(station.url_resolved, station.name, station.favicon)
                         },
@@ -232,6 +226,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
                         favorites = favorites,
                         activeUrl = currentUrl,
                         playbackState = playbackState,
+                        listState = favoritesListState,
                         onStationSelect = { favStation ->
                             viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon)
                         },

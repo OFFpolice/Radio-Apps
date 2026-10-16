@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -53,14 +54,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ColorFilter
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Precision
 import com.offpolice.webradiobot.data.ApiStation
 import com.offpolice.webradiobot.data.FavoriteStation
 import com.offpolice.webradiobot.player.PlaybackState
 import com.offpolice.webradiobot.ui.theme.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 // Full screen loaders representing loadingScreen element from user code
@@ -541,7 +547,17 @@ fun SectionHeader(
     }
 }
 
-// Station list item layout with high-fidelity visuals
+// Pre-allocated static shapes and brushes to eliminate runtime allocations during scrolling
+private val StationCardShape = RoundedCornerShape(16.dp)
+private val StationCoverShape = RoundedCornerShape(12.dp)
+private val TagChipShape = RoundedCornerShape(12.dp)
+
+private val InactiveBorderColor = Color(0x0AFFFFFF)
+private val ActiveBorderBrush = Brush.linearGradient(
+    listOf(PrimaryPink.copy(alpha = 0.7f), SecondaryPink.copy(alpha = 0.35f))
+)
+
+// Station list item layout with high-fidelity visuals and 60fps scrolling optimization
 @Composable
 fun StationCard(
     name: String,
@@ -556,38 +572,19 @@ fun StationCard(
     isPlaying: Boolean = false
 ) {
     val cardBackground = if (isActive) ActiveCardBg else CardBg
-    val borderBrush = if (isActive) {
-        val infiniteTransition = rememberInfiniteTransition(label = "active_pulse")
-        val alpha by infiniteTransition.animateFloat(
-            initialValue = 0.2f,
-            targetValue = 0.7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulse_alpha"
-        )
-        Brush.linearGradient(
-            colors = listOf(PrimaryPink.copy(alpha = alpha), SecondaryPink.copy(alpha = alpha * 0.3f))
-        )
-    } else {
-        remember {
-            Brush.linearGradient(
-                colors = listOf(Color.White.copy(alpha = 0.03f), Color.White.copy(alpha = 0.03f))
-            )
-        }
-    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(StationCardShape)
             .background(cardBackground)
-            .border(
-                width = 1.dp,
-                brush = borderBrush,
-                shape = RoundedCornerShape(16.dp)
+            .then(
+                if (isActive) {
+                    Modifier.border(width = 1.dp, brush = ActiveBorderBrush, shape = StationCardShape)
+                } else {
+                    Modifier.border(width = 1.dp, color = InactiveBorderColor, shape = StationCardShape)
+                }
             )
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
@@ -598,40 +595,37 @@ fun StationCard(
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(StationCoverShape)
                 .background(SearchBg),
             contentAlignment = Alignment.Center
         ) {
+            val fallbackPainter = rememberVectorPainter(Icons.Default.Radio)
             if (!faviconUrl.isNullOrBlank()) {
-                var isError by remember(faviconUrl) { mutableStateOf(false) }
-                if (isError) {
-                    Icon(
-                        imageVector = Icons.Default.Radio,
-                        contentDescription = "Standard Fallback Radio Cover Icon",
-                        tint = SecondaryPink,
-                        modifier = Modifier.size(28.dp)
-                    )
-                } else {
-                    val context = LocalContext.current
-                    val imageRequest = remember(faviconUrl) {
-                        ImageRequest.Builder(context)
-                            .data(faviconUrl)
-                            .crossfade(true)
-                            .build()
-                    }
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = "Station Favicon Cover",
-                        contentScale = ContentScale.Crop,
-                        onError = { isError = true },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                val context = LocalContext.current
+                val imageRequest = remember(faviconUrl) {
+                    ImageRequest.Builder(context)
+                        .data(faviconUrl)
+                        .size(96, 96)
+                        .precision(Precision.INEXACT)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .crossfade(false)
+                        .build()
                 }
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = "Station Favicon Cover",
+                    contentScale = ContentScale.Crop,
+                    placeholder = fallbackPainter,
+                    error = fallbackPainter,
+                    fallback = fallbackPainter,
+                    modifier = Modifier.fillMaxSize()
+                )
             } else {
-                Icon(
-                    imageVector = Icons.Default.Radio,
+                Image(
+                    painter = fallbackPainter,
                     contentDescription = "Standard Fallback Radio Cover Icon",
-                    tint = SecondaryPink,
+                    colorFilter = ColorFilter.tint(SecondaryPink),
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -661,13 +655,26 @@ fun StationCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Badges / Tags row (Optimized using remember for string splitting operations)
+            // Badges / Tags row (Optimized fast parsing without intermediate collections)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 val parsedTags = remember(tags) {
-                    tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.distinct()?.take(3) ?: emptyList()
+                    if (tags.isNullOrBlank()) emptyList()
+                    else {
+                        val result = ArrayList<String>(3)
+                        var count = 0
+                        for (part in tags.split(',')) {
+                            val trimmed = part.trim()
+                            if (trimmed.isNotEmpty() && !result.contains(trimmed)) {
+                                result.add(trimmed)
+                                count++
+                                if (count == 3) break
+                            }
+                        }
+                        result
+                    }
                 }
                 if (parsedTags.isNotEmpty()) {
                     parsedTags.forEach { tag ->
@@ -704,7 +711,7 @@ fun TagChip(text: String, isActive: Boolean) {
         modifier = Modifier
             .background(
                 color = if (isActive) Color(0xFF3A2A33) else SearchBg,
-                shape = RoundedCornerShape(12.dp)
+                shape = TagChipShape
             )
             .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
@@ -974,15 +981,26 @@ fun RadioTab(
     onStationSelect: (ApiStation) -> Unit,
     onToggleFavorite: (ApiStation) -> Unit,
     onLoadMore: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
+    searchQuery: String = ""
 ) {
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
-            focusManager.clearFocus()
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { isScrolling ->
+                if (isScrolling) {
+                    focusManager.clearFocus(force = false)
+                }
+            }
+    }
+
+    LaunchedEffect(searchQuery) {
+        if (listState.firstVisibleItemIndex > 0) {
+            listState.scrollToItem(0)
         }
     }
 
@@ -991,18 +1009,17 @@ fun RadioTab(
         favorites.map { it.urlResolved }.toSet()
     }
 
-    // Infinite scroll detection
-    val shouldLoadMore = remember {
+    // Infinite scroll detection - trigger when user is near bottom
+    val shouldLoadMore by remember {
         derivedStateOf {
             val totalItemsCount = listState.layoutInfo.totalItemsCount
             val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            // Trigger load-more when scrolled 80% through the loaded list
-            totalItemsCount > 0 && lastVisibleItemIndex >= (totalItemsCount - 10)
+            totalItemsCount > 0 && lastVisibleItemIndex >= (totalItemsCount - 5)
         }
     }
 
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && !isLoading && hasMore) {
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && !isLoading && hasMore) {
             onLoadMore()
         }
     }
@@ -1013,23 +1030,27 @@ fun RadioTab(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            item {
+            item(contentType = "header") {
                 SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
             }
 
             if (stations.isEmpty() && !isLoading) {
-                item {
+                item(contentType = "placeholder") {
                     EmptyPlaceholder(
                         message = stringLoc("nothing_found"),
                         icon = Icons.Default.SearchOff
                     )
                 }
             } else {
-                items(stations, key = { it.url_resolved }) { station ->
+                items(
+                    items = stations,
+                    key = { it.stationuuid?.ifBlank { null } ?: it.url_resolved },
+                    contentType = { "station_item" }
+                ) { station ->
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favoriteUrls.contains(station.url_resolved)
+                    val isStationPlaying = isActive && (playbackState == PlaybackState.PLAYING)
 
-                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
                     val onSelectLambda = remember(station.url_resolved) {
                         { onStationSelect(station) }
                     }
@@ -1046,12 +1067,12 @@ fun RadioTab(
                         isFavorite = isFav,
                         onSelect = onSelectLambda,
                         onToggleFavorite = onToggleFavLambda,
-                        isPlaying = playbackState == PlaybackState.PLAYING
+                        isPlaying = isStationPlaying
                     )
                 }
 
                 if (isLoading) {
-                    item {
+                    item(contentType = "loading") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1092,16 +1113,20 @@ fun FavoritesTab(
     playbackState: PlaybackState,
     onStationSelect: (FavoriteStation) -> Unit,
     onToggleFavorite: (FavoriteStation) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
 ) {
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
-            focusManager.clearFocus()
-        }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { isScrolling ->
+                if (isScrolling) {
+                    focusManager.clearFocus(force = false)
+                }
+            }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -1116,10 +1141,14 @@ fun FavoritesTab(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(favorites, key = { it.urlResolved }) { station ->
+                items(
+                    items = favorites,
+                    key = { it.urlResolved },
+                    contentType = { "station_item" }
+                ) { station ->
                     val isActive = activeUrl == station.urlResolved
+                    val isStationPlaying = isActive && (playbackState == PlaybackState.PLAYING)
 
-                    // Optimize lambdas to prevent unnecessary recompositions of StationCard on scroll
                     val onSelectLambda = remember(station.urlResolved) {
                         { onStationSelect(station) }
                     }
@@ -1136,7 +1165,7 @@ fun FavoritesTab(
                         isFavorite = true,
                         onSelect = onSelectLambda,
                         onToggleFavorite = onToggleFavLambda,
-                        isPlaying = playbackState == PlaybackState.PLAYING
+                        isPlaying = isStationPlaying
                     )
                 }
             }
