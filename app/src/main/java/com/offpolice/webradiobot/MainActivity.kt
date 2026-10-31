@@ -33,6 +33,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.offpolice.webradiobot.data.ApiStation
+import com.offpolice.webradiobot.data.FavoriteStation
 import com.offpolice.webradiobot.ui.*
 import com.offpolice.webradiobot.ui.theme.*
 
@@ -72,7 +74,33 @@ class MainActivity : ComponentActivity() {
                 LocalLanguageSetting provides languageSetting
             ) {
                 MyApplicationTheme(themeSetting = themeSetting) {
-                    MainAppContent(viewModel = viewModel)
+                    val isConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
+                    val connectionProgress by viewModel.connectionProgress.collectAsStateWithLifecycle()
+                    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
+
+                    AnimatedContent(
+                        targetState = isConnecting,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        },
+                        label = "connection_transition"
+                    ) { connecting ->
+                        if (connecting) {
+                            val statusText = when (connectionState) {
+                                ConnectionState.INITIALIZING -> stringLoc("state_init")
+                                ConnectionState.LOADING_RESOURCES -> stringLoc("state_resources")
+                                ConnectionState.CONNECTING_SERVER -> stringLoc("state_connecting")
+                                ConnectionState.GETTING_STATIONS -> stringLoc("state_stations")
+                                ConnectionState.READY -> stringLoc("state_ready")
+                            }
+                            FullScreenLoadingScreen(
+                                progress = connectionProgress / 100f,
+                                statusText = statusText
+                            )
+                        } else {
+                            MainAppContent(viewModel = viewModel)
+                        }
+                    }
                 }
             }
         }
@@ -82,30 +110,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppContent(viewModel: RadioViewModel) {
     val isLanguageScreenOpen by viewModel.isLanguageScreenOpen.collectAsStateWithLifecycle()
-
-    if (isLanguageScreenOpen) {
-        val languageOptions = remember {
-            listOf(
-                Triple(AppLanguageSetting.AUTO, "language_auto", "language_default_hint"),
-                Triple(AppLanguageSetting.EN, "language_en", null),
-                Triple(AppLanguageSetting.RU, "language_ru", null),
-                Triple(AppLanguageSetting.UK, "language_uk", null)
-            )
-        }
-        val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
-        LanguageScreen(
-            selected = languageSetting,
-            options = languageOptions,
-            onSelect = {
-                viewModel.setLanguageSetting(it)
-                viewModel.showLanguageScreen(false)
-            },
-            onBack = {
-                viewModel.showLanguageScreen(false)
-            }
-        )
-        return
-    }
+    val radioListState = rememberLazyListState()
+    val favoritesListState = rememberLazyListState()
+    val settingsListState = rememberLazyListState()
 
     val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -114,12 +121,8 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
 
-    // Player state management flows
+    // Only collect what MainAppContent and tabs need for active item highlighting
     val currentUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
-    val currentName by viewModel.playerManager.currentName.collectAsStateWithLifecycle()
-    val currentFavicon by viewModel.playerManager.currentFavicon.collectAsStateWithLifecycle()
-    val currentArtist by viewModel.playerManager.currentArtist.collectAsStateWithLifecycle()
-    val currentTrackTitle by viewModel.playerManager.currentTrackTitle.collectAsStateWithLifecycle()
     val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
@@ -136,109 +139,135 @@ fun MainAppContent(viewModel: RadioViewModel) {
         }
     }
 
-    val radioListState = rememberLazyListState()
-    val favoritesListState = rememberLazyListState()
+    // Stable event listeners remembered across MainActivity recompositions
+    val onStationSelect: (ApiStation) -> Unit = remember(viewModel) {
+        { station -> viewModel.selectStation(station.url_resolved, station.name, station.favicon) }
+    }
+    val onToggleFavorite: (ApiStation) -> Unit = remember(viewModel) {
+        { station -> viewModel.toggleFavorite(station.url_resolved, station.name, station.favicon, station.tags) }
+    }
+    val onLoadMore: () -> Unit = remember(viewModel) {
+        { viewModel.fetchStations(reset = false) }
+    }
+    val onFavSelect: (FavoriteStation) -> Unit = remember(viewModel) {
+        { favStation -> viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon) }
+    }
+    val onFavToggle: (FavoriteStation) -> Unit = remember(viewModel) {
+        { favStation -> viewModel.toggleFavorite(favStation.urlResolved, favStation.name, favStation.favicon, favStation.tags) }
+    }
 
-    Scaffold(
-        topBar = {
-            AppHeader(
-                activeTab = activeTab,
-                searchQuery = searchQuery,
-                onSearchChange = { viewModel.updateSearchQuery(it) },
-                onSearchSubmit = { viewModel.submitSearch(it) },
-                isSearchVisible = activeTab == AppTab.RADIO
-            )
-        },
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .background(CardBg)
-                    .navigationBarsPadding()
-            ) {
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = DividerColor
-                )
-                PlayerBar(
-                    currentName = currentName,
-                    currentArtist = currentArtist,
-                    currentTrackTitle = currentTrackTitle,
-                    currentFavicon = currentFavicon,
-                    playbackState = playbackState,
-                    onPlayToggle = { viewModel.togglePlay() }
-                )
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = DividerColor
-                )
-                AppBottomNav(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                AppHeader(
                     activeTab = activeTab,
-                    onTabSelect = {
-                        focusManager.clearFocus()
-                        viewModel.selectTab(it)
-                    }
+                    searchQuery = searchQuery,
+                    onSearchChange = { viewModel.updateSearchQuery(it) },
+                    onSearchSubmit = { viewModel.submitSearch(it) },
+                    isSearchVisible = activeTab == AppTab.RADIO
                 )
-            }
-        },
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = {
-                    focusManager.clearFocus()
-                })
-            }
-    ) { innerPadding ->
-        Box(
+            },
+            bottomBar = {
+                Column(
+                    modifier = Modifier
+                        .background(CardBg)
+                        .navigationBarsPadding()
+                ) {
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = DividerColor
+                    )
+                    PlayerBar(
+                        playerManager = viewModel.playerManager,
+                        onPlayToggle = { viewModel.togglePlay() }
+                    )
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = DividerColor
+                    )
+                    AppBottomNav(
+                        activeTab = activeTab,
+                        onTabSelect = {
+                            focusManager.clearFocus()
+                            viewModel.selectTab(it)
+                        }
+                    )
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = {
                         focusManager.clearFocus()
                     })
                 }
-        ) {
-            when (activeTab) {
-                AppTab.RADIO -> {
-                    RadioTab(
-                        stations = stations,
-                        favorites = favorites,
-                        activeUrl = currentUrl,
-                        playbackState = playbackState,
-                        isLoading = isLoading,
-                        hasMore = hasMore,
-                        listState = radioListState,
-                        searchQuery = searchQuery,
-                        onStationSelect = { station ->
-                            viewModel.selectStation(station.url_resolved, station.name, station.favicon)
-                        },
-                        onToggleFavorite = { station ->
-                            viewModel.toggleFavorite(station.url_resolved, station.name, station.favicon, station.tags)
-                        },
-                        onLoadMore = {
-                            viewModel.fetchStations(reset = false)
-                        }
-                    )
-                }
-                AppTab.FAVORITES -> {
-                    FavoritesTab(
-                        favorites = favorites,
-                        activeUrl = currentUrl,
-                        playbackState = playbackState,
-                        listState = favoritesListState,
-                        onStationSelect = { favStation ->
-                            viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon)
-                        },
-                        onToggleFavorite = { favStation ->
-                            viewModel.toggleFavorite(favStation.urlResolved, favStation.name, favStation.favicon, favStation.tags)
-                        }
-                    )
-                }
-                AppTab.SETTINGS -> {
-                    SettingsTab(viewModel = viewModel)
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(innerPadding)
+            ) {
+                when (activeTab) {
+                    AppTab.RADIO -> {
+                        RadioTab(
+                            stations = stations,
+                            favorites = favorites,
+                            activeUrl = currentUrl,
+                            playbackState = playbackState,
+                            isLoading = isLoading,
+                            hasMore = hasMore,
+                            listState = radioListState,
+                            searchQuery = searchQuery,
+                            onStationSelect = onStationSelect,
+                            onToggleFavorite = onToggleFavorite,
+                            onLoadMore = onLoadMore
+                        )
+                    }
+                    AppTab.FAVORITES -> {
+                        FavoritesTab(
+                            favorites = favorites,
+                            activeUrl = currentUrl,
+                            playbackState = playbackState,
+                            listState = favoritesListState,
+                            onStationSelect = onFavSelect,
+                            onToggleFavorite = onFavToggle
+                        )
+                    }
+                    AppTab.SETTINGS -> {
+                        SettingsTab(
+                            viewModel = viewModel,
+                            listState = settingsListState
+                        )
+                    }
                 }
             }
         }
+
+        if (isLanguageScreenOpen) {
+            val languageOptions = remember {
+                listOf(
+                    Triple(AppLanguageSetting.AUTO, "language_auto", "language_default_hint"),
+                    Triple(AppLanguageSetting.EN, "language_en", null),
+                    Triple(AppLanguageSetting.RU, "language_ru", null),
+                    Triple(AppLanguageSetting.UK, "language_uk", null)
+                )
+            }
+            val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
+            LanguageScreen(
+                selected = languageSetting,
+                options = languageOptions,
+                onSelect = {
+                    viewModel.setLanguageSetting(it)
+                    viewModel.showLanguageScreen(false)
+                },
+                onBack = {
+                    viewModel.showLanguageScreen(false)
+                }
+            )
+        }
+
+        // In-app GitHub update dialog
+        AppUpdateDialog(viewModel = viewModel)
     }
 }

@@ -11,9 +11,14 @@ import java.util.concurrent.TimeUnit
 class MyApplication : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(3, TimeUnit.SECONDS)
-            .readTimeout(3, TimeUnit.SECONDS)
-            .callTimeout(4, TimeUnit.SECONDS)
+            .dispatcher(okhttp3.Dispatcher().apply {
+                maxRequests = 16
+                maxRequestsPerHost = 4
+            })
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .callTimeout(3, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
             .build()
 
         return ImageLoader.Builder(this)
@@ -31,6 +36,7 @@ class MyApplication : Application(), ImageLoaderFactory {
                     .build()
             }
             .respectCacheHeaders(false)
+            .allowHardware(true)
             .allowRgb565(true)
             .crossfade(false)
             .build()

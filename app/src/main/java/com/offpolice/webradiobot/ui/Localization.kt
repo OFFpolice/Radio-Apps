@@ -66,7 +66,26 @@ object Loc {
         "state_stations" to "Fetching station list...",
         "state_ready" to "Ready!",
         "btn_cancel" to "Cancel",
-        "scroll_to_top" to "Top"
+        "scroll_to_top" to "Top",
+        "setting_updates" to "App Updates",
+        "check_updates" to "Check for Updates",
+        "checking_updates" to "Checking for updates...",
+        "current_version" to "Current version",
+        "latest_version_installed" to "You have the latest version",
+        "new_version_available" to "Update Available!",
+        "update_now" to "Update Now",
+        "update_later" to "Later",
+        "downloading_update" to "Downloading update...",
+        "install_update" to "Install Update",
+        "update_downloaded" to "Download complete",
+        "update_error" to "Could not check or download update",
+        "changelog_title" to "What's new:",
+        "no_changelog" to "Performance improvements and bug fixes.",
+        "permission_unknown_sources" to "To install the update, please allow installing apps for WebRadioBot in Settings.",
+        "open_settings" to "Open Settings",
+        "update_size" to "Size",
+        "update_version_arrow" to "Update to",
+        "github_releases" to "GitHub Releases"
     )
 
     private val ru = mapOf(
@@ -109,7 +128,26 @@ object Loc {
         "state_stations" to "Получение списка станций...",
         "state_ready" to "Готово!",
         "btn_cancel" to "Отмена",
-        "scroll_to_top" to "Наверх"
+        "scroll_to_top" to "Наверх",
+        "setting_updates" to "Обновление приложения",
+        "check_updates" to "Проверить обновления",
+        "checking_updates" to "Проверка обновлений...",
+        "current_version" to "Текущая версия",
+        "latest_version_installed" to "У вас установлена последняя версия",
+        "new_version_available" to "Доступно обновление!",
+        "update_now" to "Обновить сейчас",
+        "update_later" to "Позже",
+        "downloading_update" to "Загрузка обновления...",
+        "install_update" to "Установить обновление",
+        "update_downloaded" to "Загрузка завершена",
+        "update_error" to "Не удалось проверить или скачать обновление",
+        "changelog_title" to "Что нового:",
+        "no_changelog" to "Улучшение стабильности и исправление ошибок.",
+        "permission_unknown_sources" to "Для установки обновления разрешите установку приложений для WebRadioBot в настройках.",
+        "open_settings" to "Открыть настройки",
+        "update_size" to "Размер",
+        "update_version_arrow" to "Обновление до",
+        "github_releases" to "Релизы GitHub"
     )
 
     private val uk = mapOf(
@@ -152,7 +190,26 @@ object Loc {
         "state_stations" to "Отримання списку станцій...",
         "state_ready" to "Готово!",
         "btn_cancel" to "Скасувати",
-        "scroll_to_top" to "Догори"
+        "scroll_to_top" to "Догори",
+        "setting_updates" to "Оновлення додатку",
+        "check_updates" to "Перевірити оновлення",
+        "checking_updates" to "Перевірка оновлень...",
+        "current_version" to "Поточна версія",
+        "latest_version_installed" to "У вас встановлена остання версія",
+        "new_version_available" to "Доступне оновлення!",
+        "update_now" to "Оновити зараз",
+        "update_later" to "Пізніше",
+        "downloading_update" to "Завантаження оновлення...",
+        "install_update" to "Встановити оновлення",
+        "update_downloaded" to "Завантаження завершено",
+        "update_error" to "Не вдалося перевірити або завантажити оновлення",
+        "changelog_title" to "Що нового:",
+        "no_changelog" to "Покращення стабільності та виправлення помилок.",
+        "permission_unknown_sources" to "Для встановлення оновлення дозвольте встановлення додатків для WebRadioBot у налаштуваннях.",
+        "open_settings" to "Відкрити налаштування",
+        "update_size" to "Розмір",
+        "update_version_arrow" to "Оновлення до",
+        "github_releases" to "Релізи GitHub"
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {

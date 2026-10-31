@@ -2,7 +2,6 @@ package com.offpolice.webradiobot.data
 
 import android.content.Context
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -14,13 +13,14 @@ class RadioRepository(context: Context) {
     private val favoriteStationDao = database.favoriteStationDao()
     private val cachedStationDao = database.cachedStationDao()
 
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
+    private val prefs = context.getSharedPreferences("radio_repo_prefs", Context.MODE_PRIVATE)
+
+    // Moshi without reflection - models use codegen with @JsonClass(generateAdapter = true)
+    private val moshi = Moshi.Builder().build()
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
     private val api = Retrofit.Builder()
@@ -30,8 +30,9 @@ class RadioRepository(context: Context) {
         .build()
         .create(RadioBrowserApi::class.java)
 
-    // Current resolved server for API operations
-    private var resolvedServer: String = "https://de1.api.radio-browser.info"
+    // Current resolved server for API operations, persisted across app runs
+    private var resolvedServer: String = prefs.getString("resolved_server", "https://de1.api.radio-browser.info")
+        ?: "https://de1.api.radio-browser.info"
 
     suspend fun resolveActiveServer() {
         try {
@@ -39,21 +40,39 @@ class RadioRepository(context: Context) {
             if (servers.isNotEmpty()) {
                 val randomServer = servers.random()
                 resolvedServer = "https://${randomServer.name}"
+                prefs.edit().putString("resolved_server", resolvedServer).apply()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            // Fallbacks automatically to "https://de1.api.radio-browser.info"
+            // Fallback to currently resolved or default server
         }
     }
 
     suspend fun searchStations(name: String?, limit: Int, offset: Int): List<ApiStation> {
         val pathUrl = "$resolvedServer/json/stations/search"
-        return api.searchStations(
-            url = pathUrl,
-            name = name?.ifBlank { null },
-            limit = limit,
-            offset = offset
-        )
+        return try {
+            api.searchStations(
+                url = pathUrl,
+                name = name?.ifBlank { null },
+                limit = limit,
+                offset = offset,
+                hidebroken = true
+            )
+        } catch (e: Exception) {
+            // Quick failover if the current server fails
+            val fallbackUrl = "https://de1.api.radio-browser.info/json/stations/search"
+            if (pathUrl != fallbackUrl) {
+                resolvedServer = "https://de1.api.radio-browser.info"
+                api.searchStations(
+                    url = fallbackUrl,
+                    name = name?.ifBlank { null },
+                    limit = limit,
+                    offset = offset,
+                    hidebroken = true
+                )
+            } else {
+                throw e
+            }
+        }
     }
 
     // Favorites Operations
@@ -74,7 +93,7 @@ class RadioRepository(context: Context) {
     }
 
     fun isFavorite(urlResolved: String): Flow<Boolean> = favoriteStationDao.isFavorite(urlResolved)
- 
+
     suspend fun getCachedStations(): List<ApiStation> {
         return try {
             cachedStationDao.getCachedStations().map { cached ->
@@ -103,10 +122,9 @@ class RadioRepository(context: Context) {
                     position = index
                 )
             }
-            cachedStationDao.clearCachedStations()
-            cachedStationDao.insertStations(entities)
+            cachedStationDao.replaceCachedStations(entities)
         } catch (e: Exception) {
-            e.printStackTrace()
+            // Ignore cache write errors
         }
     }
 }

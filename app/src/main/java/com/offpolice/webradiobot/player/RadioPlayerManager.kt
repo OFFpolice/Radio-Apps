@@ -105,13 +105,13 @@ class RadioPlayerManager private constructor(private val context: Context) {
     fun getOrInitPlayer(): ExoPlayer {
         exoPlayer?.let { return it }
 
-        // Low buffering limits for near-instant radio stream start
+        // Mobile network friendly buffering limits
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                1000, // minBufferMs
-                3000, // maxBufferMs
-                250,  // bufferForPlaybackMs
-                500   // bufferForPlaybackAfterRebufferMs
+                5_000,  // minBufferMs
+                20_000, // maxBufferMs
+                1_000,  // bufferForPlaybackMs
+                2_500   // bufferForPlaybackAfterRebufferMs
             )
             .build()
 
@@ -167,6 +167,8 @@ class RadioPlayerManager private constructor(private val context: Context) {
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setAudioAttributes(audioAttributes, true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setHandleAudioBecomingNoisy(true)
             .build()
             .apply {
                 playWhenReady = true
@@ -345,8 +347,6 @@ class RadioPlayerManager private constructor(private val context: Context) {
                 .build()
 
             player.apply {
-                stop()
-                clearMediaItems()
                 setMediaItem(mediaItem)
                 playlistMetadata = metadata
                 prepare()
@@ -403,9 +403,7 @@ class RadioPlayerManager private constructor(private val context: Context) {
     }
 
     fun onServiceDestroyed() {
-        exoPlayer = null
-        sharedPlayer = null
-        _playbackState.value = PlaybackState.IDLE
+        release()
     }
 
     fun release() {

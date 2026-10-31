@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface CachedStationDao {
@@ -15,4 +16,10 @@ interface CachedStationDao {
 
     @Query("DELETE FROM cached_stations")
     suspend fun clearCachedStations()
+
+    @Transaction
+    suspend fun replaceCachedStations(stations: List<CachedStation>) {
+        clearCachedStations()
+        insertStations(stations)
+    }
 }

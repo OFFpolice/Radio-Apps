@@ -17,6 +17,7 @@ interface RadioBrowserApi {
         @Query("limit") limit: Int,
         @Query("offset") offset: Int,
         @Query("order") order: String = "votes",
-        @Query("reverse") reverse: Boolean = true
+        @Query("reverse") reverse: Boolean = true,
+        @Query("hidebroken") hidebroken: Boolean = true
     ): List<ApiStation>
 }

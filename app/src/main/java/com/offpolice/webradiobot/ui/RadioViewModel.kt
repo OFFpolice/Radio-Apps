@@ -97,13 +97,13 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private val _apiError = MutableStateFlow<String?>(null)
     val apiError: StateFlow<String?> = _apiError.asStateFlow()
 
-    private val _connectionProgress = MutableStateFlow(10) // 0-100%
+    private val _connectionProgress = MutableStateFlow(15) // 0-100%
     val connectionProgress: StateFlow<Int> = _connectionProgress.asStateFlow()
 
     private val _connectionState = MutableStateFlow(ConnectionState.INITIALIZING)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    private val _isConnecting = MutableStateFlow(false)
+    private val _isConnecting = MutableStateFlow(true)
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
 
     private var offset = 0
@@ -111,6 +111,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     private var searchJob: Job? = null
     private var isFetchingPage = false
     private val loadedStationUrls = HashSet<String>()
+    private var lastFetchedQuery: String? = null
 
     init {
         playerManager.onNextStation = {
@@ -120,15 +121,43 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             playPreviousStation()
         }
 
-        // 1. Instantly load cached stations from Room if available
+        // 1. Startup loading flow: show loading screen, load cache instantly, then fetch fresh data
         viewModelScope.launch {
+            _isConnecting.value = true
+            _connectionProgress.value = 20
+            _connectionState.value = ConnectionState.INITIALIZING
+
+            // Instantly load cached catalog from Room so UI is never blank
             val cached = repository.getCachedStations()
-            if (_stations.value.isEmpty() && cached.isNotEmpty()) {
+            if (cached.isNotEmpty()) {
                 _stations.value = cached
                 for (s in cached) {
                     val key = s.stationuuid?.ifBlank { null } ?: s.url_resolved
                     loadedStationUrls.add(key)
                 }
+            }
+
+            _connectionProgress.value = 55
+            _connectionState.value = ConnectionState.CONNECTING_SERVER
+
+            repository.resolveActiveServer()
+
+            _connectionProgress.value = 80
+            _connectionState.value = ConnectionState.GETTING_STATIONS
+
+            fetchStations(reset = true, query = "")
+
+            _connectionProgress.value = 100
+            _connectionState.value = ConnectionState.READY
+            delay(350)
+            _isConnecting.value = false
+
+            // Restore last played station metadata into UI only if previously chosen
+            val lastUrl = sharedPrefs.getString("last_url", null)
+            val lastName = sharedPrefs.getString("last_name", null)
+            val lastFavicon = sharedPrefs.getString("last_favicon", null)
+            if (lastUrl != null && lastName != null) {
+                playerManager.initStationWithoutPlayback(lastUrl, lastName, lastFavicon)
             }
         }
 
@@ -143,19 +172,39 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
                 }
         }
 
-        // 3. Resolve active server and fetch fresh catalog in background without blocking UI
+        // 3. Silent check for updates after launch
         viewModelScope.launch {
-            repository.resolveActiveServer()
-            fetchStations(reset = true, query = "")
-
-            // Restore last played station into UI only if the user had previously selected one
-            val lastUrl = sharedPrefs.getString("last_url", null)
-            val lastName = sharedPrefs.getString("last_name", null)
-            val lastFavicon = sharedPrefs.getString("last_favicon", null)
-            if (lastUrl != null && lastName != null) {
-                playerManager.initStationWithoutPlayback(lastUrl, lastName, lastFavicon)
-            }
+            delay(2500)
+            updateManager.checkForUpdates(isManual = false)
         }
+    }
+
+    val updateManager = com.offpolice.webradiobot.updater.AppUpdateManager(application, viewModelScope)
+    val updateState: StateFlow<com.offpolice.webradiobot.updater.AppUpdateState> = updateManager.updateState
+    val isUpdateDialogVisible: StateFlow<Boolean> = updateManager.isUpdateDialogVisible
+
+    fun checkForUpdates(isManual: Boolean = true) {
+        updateManager.checkForUpdates(isManual)
+    }
+
+    fun startUpdateDownload(info: com.offpolice.webradiobot.updater.AppUpdateInfo) {
+        updateManager.startDownload(info)
+    }
+
+    fun cancelUpdateDownload() {
+        updateManager.cancelDownload()
+    }
+
+    fun dismissUpdateDialog(rememberDismissed: Boolean = false) {
+        updateManager.dismissDialog(rememberDismissed)
+    }
+
+    fun showUpdateDialog() {
+        updateManager.showDialog()
+    }
+
+    fun installUpdateApk(activity: android.app.Activity, apkPath: String) {
+        updateManager.installApk(activity, apkPath)
     }
 
     fun selectTab(tab: AppTab) {
@@ -178,16 +227,17 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
 
     fun fetchStations(reset: Boolean, query: String = searchQuery.value) {
         if (reset) {
-            // Cancel previous in-flight search request immediately
+            // If already completed this exact search query, don't refetch needlessly
+            if (query == lastFetchedQuery && _stations.value.isNotEmpty() && !_isLoading.value) {
+                return
+            }
             searchJob?.cancel()
             _isLoading.value = true
             _apiError.value = null
             offset = 0
             _hasMore.value = true
-            loadedStationUrls.clear()
-            _stations.value = emptyList()
+            // Note: do not clear _stations here to prevent cache/screen flickering until fresh data arrives
         } else {
-            // For next pages: do not fire if already fetching or reached end
             if (_isLoading.value || isFetchingPage || !_hasMore.value) return
             _isLoading.value = true
             _apiError.value = null
@@ -197,35 +247,34 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
             if (!reset) isFetchingPage = true
             try {
                 val currentOffset = offset
-                val processed = withContext(Dispatchers.IO) {
+                val validResults = withContext(Dispatchers.IO) {
                     val results = repository.searchStations(query, LIMIT, currentOffset)
-                    val validResults = results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
+                    results.filter { it.url_resolved.isNotBlank() && it.name.isNotBlank() }
+                }
 
-                    val newUniqueResults = ArrayList<ApiStation>(validResults.size)
-                    for (item in validResults) {
-                        val key = item.stationuuid?.ifBlank { null } ?: item.url_resolved
-                        if (loadedStationUrls.add(key)) {
-                            newUniqueResults.add(item)
-                        }
-                    }
-
-                    if (reset) {
-                        Pair(newUniqueResults, validResults.size)
-                    } else {
-                        Pair(_stations.value + newUniqueResults, validResults.size)
+                // Deduplicate safely on the Main thread
+                if (reset) {
+                    loadedStationUrls.clear()
+                }
+                val newUniqueResults = ArrayList<ApiStation>(validResults.size)
+                for (item in validResults) {
+                    val key = item.stationuuid?.ifBlank { null } ?: item.url_resolved
+                    if (loadedStationUrls.add(key)) {
+                        newUniqueResults.add(item)
                     }
                 }
 
-                _stations.value = processed.first
-                offset += processed.second
-                _hasMore.value = processed.second == LIMIT
+                _stations.value = if (reset) newUniqueResults else (_stations.value + newUniqueResults)
+                offset += validResults.size
+                _hasMore.value = validResults.size == LIMIT
+                lastFetchedQuery = query
 
-                // Cache first page of default catalog for fast offline startup
-                if (reset && query.isBlank() && processed.first.isNotEmpty()) {
-                    repository.saveCachedStations(processed.first.take(50))
+                // Cache top stations for fast offline startup
+                if (reset && query.isBlank() && _stations.value.isNotEmpty()) {
+                    repository.saveCachedStations(_stations.value.take(50))
                 }
             } catch (e: CancellationException) {
-                // Search cancelled by new query - do not treat as error
+                // Ignore search cancellation
             } catch (e: Exception) {
                 e.printStackTrace()
                 _apiError.value = "Ошибка сети при загрузке станций"

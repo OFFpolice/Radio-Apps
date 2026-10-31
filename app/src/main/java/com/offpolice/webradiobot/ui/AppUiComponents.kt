@@ -62,7 +62,11 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import com.offpolice.webradiobot.data.ApiStation
 import com.offpolice.webradiobot.data.FavoriteStation
+import com.offpolice.webradiobot.data.extractTopThreeTags
+import com.offpolice.webradiobot.data.isValidFaviconUrl
 import com.offpolice.webradiobot.player.PlaybackState
+import com.offpolice.webradiobot.player.RadioPlayerManager
+import androidx.compose.ui.graphics.painter.Painter
 import com.offpolice.webradiobot.ui.theme.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
@@ -556,13 +560,19 @@ private val InactiveBorderColor = Color(0x0AFFFFFF)
 private val ActiveBorderBrush = Brush.linearGradient(
     listOf(PrimaryPink.copy(alpha = 0.7f), SecondaryPink.copy(alpha = 0.35f))
 )
+private val InactiveBorderStroke = BorderStroke(1.dp, InactiveBorderColor)
+private val ActiveBorderStroke = BorderStroke(1.dp, ActiveBorderBrush)
+private val ActiveTagBg = Color(0xFF3A2A33)
+private val ActiveTagTextColor = Color(0xFFE0B0C0)
 
 // Station list item layout with high-fidelity visuals and 60fps scrolling optimization
 @Composable
 fun StationCard(
     name: String,
     faviconUrl: String?,
-    tags: String?,
+    tag1: String?,
+    tag2: String?,
+    tag3: String?,
     urlResolved: String,
     isActive: Boolean,
     isFavorite: Boolean,
@@ -577,15 +587,11 @@ fun StationCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(StationCardShape)
-            .background(cardBackground)
+            .background(cardBackground, StationCardShape)
             .then(
-                if (isActive) {
-                    Modifier.border(width = 1.dp, brush = ActiveBorderBrush, shape = StationCardShape)
-                } else {
-                    Modifier.border(width = 1.dp, color = InactiveBorderColor, shape = StationCardShape)
-                }
+                if (isActive) Modifier.border(ActiveBorderStroke, StationCardShape) else Modifier
             )
+            .clip(StationCardShape)
             .clickable(onClick = onSelect)
             .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
             .testTag("station_card_${urlResolved.hashCode()}"),
@@ -595,12 +601,12 @@ fun StationCard(
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .clip(StationCoverShape)
-                .background(SearchBg),
+                .background(SearchBg, StationCoverShape)
+                .clip(StationCoverShape),
             contentAlignment = Alignment.Center
         ) {
-            val fallbackPainter = rememberVectorPainter(Icons.Default.Radio)
-            if (!faviconUrl.isNullOrBlank()) {
+            val hasValidFavicon = remember(faviconUrl) { isValidFaviconUrl(faviconUrl) }
+            if (hasValidFavicon) {
                 val context = LocalContext.current
                 val imageRequest = remember(faviconUrl) {
                     ImageRequest.Builder(context)
@@ -616,16 +622,13 @@ fun StationCard(
                     model = imageRequest,
                     contentDescription = "Station Favicon Cover",
                     contentScale = ContentScale.Crop,
-                    placeholder = fallbackPainter,
-                    error = fallbackPainter,
-                    fallback = fallbackPainter,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Image(
-                    painter = fallbackPainter,
+                Icon(
+                    imageVector = Icons.Default.Radio,
                     contentDescription = "Standard Fallback Radio Cover Icon",
-                    colorFilter = ColorFilter.tint(SecondaryPink),
+                    tint = SecondaryPink,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -639,7 +642,7 @@ fun StationCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = name.trim().ifEmpty { stringLoc("no_title") },
+                    text = name.ifEmpty { "Radio" },
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
@@ -655,30 +658,18 @@ fun StationCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Badges / Tags row (Optimized fast parsing without intermediate collections)
+            // Badges / Tags row (Fast direct evaluation without collection allocation)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val parsedTags = remember(tags) {
-                    if (tags.isNullOrBlank()) emptyList()
-                    else {
-                        val result = ArrayList<String>(3)
-                        var count = 0
-                        for (part in tags.split(',')) {
-                            val trimmed = part.trim()
-                            if (trimmed.isNotEmpty() && !result.contains(trimmed)) {
-                                result.add(trimmed)
-                                count++
-                                if (count == 3) break
-                            }
+                if (tag1 != null) {
+                    TagChip(text = tag1, isActive = isActive)
+                    if (tag2 != null) {
+                        TagChip(text = tag2, isActive = isActive)
+                        if (tag3 != null) {
+                            TagChip(text = tag3, isActive = isActive)
                         }
-                        result
-                    }
-                }
-                if (parsedTags.isNotEmpty()) {
-                    parsedTags.forEach { tag ->
-                        TagChip(text = tag, isActive = isActive)
                     }
                 } else {
                     TagChip(text = "radio", isActive = isActive)
@@ -689,11 +680,13 @@ fun StationCard(
         Spacer(modifier = Modifier.width(8.dp))
 
         // Favorite Toggle button
-        IconButton(
-            onClick = onToggleFavorite,
+        Box(
             modifier = Modifier
                 .size(36.dp)
-                .testTag("fav_btn_${urlResolved.hashCode()}")
+                .clip(CircleShape)
+                .clickable(onClick = onToggleFavorite)
+                .testTag("fav_btn_${urlResolved.hashCode()}"),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -705,28 +698,79 @@ fun StationCard(
     }
 }
 
+// Backwards-compatible overload taking raw tags string
+@Composable
+fun StationCard(
+    name: String,
+    faviconUrl: String?,
+    tags: String?,
+    urlResolved: String,
+    isActive: Boolean,
+    isFavorite: Boolean,
+    onSelect: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    modifier: Modifier = Modifier,
+    isPlaying: Boolean = false
+) {
+    val (t1, t2, t3) = remember(tags) { extractTopThreeTags(tags) }
+    StationCard(
+        name = name,
+        faviconUrl = faviconUrl,
+        tag1 = t1,
+        tag2 = t2,
+        tag3 = t3,
+        urlResolved = urlResolved,
+        isActive = isActive,
+        isFavorite = isFavorite,
+        onSelect = onSelect,
+        onToggleFavorite = onToggleFavorite,
+        modifier = modifier,
+        isPlaying = isPlaying
+    )
+}
+
 @Composable
 fun TagChip(text: String, isActive: Boolean) {
-    Box(
+    Text(
+        text = text,
+        color = if (isActive) ActiveTagTextColor else TextSecondary,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Medium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .background(
-                color = if (isActive) Color(0xFF3A2A33) else SearchBg,
+                color = if (isActive) ActiveTagBg else SearchBg,
                 shape = TagChipShape
             )
             .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = text,
-            color = if (isActive) Color(0xFFE0B0C0) else TextSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+    )
 }
 
 // Universal Persistent Player control block at the bottom of the Screen
+@Composable
+fun PlayerBar(
+    playerManager: RadioPlayerManager,
+    onPlayToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentName by playerManager.currentName.collectAsStateWithLifecycle()
+    val currentArtist by playerManager.currentArtist.collectAsStateWithLifecycle()
+    val currentTrackTitle by playerManager.currentTrackTitle.collectAsStateWithLifecycle()
+    val currentFavicon by playerManager.currentFavicon.collectAsStateWithLifecycle()
+    val playbackState by playerManager.playbackState.collectAsStateWithLifecycle()
+
+    PlayerBar(
+        currentName = currentName,
+        currentArtist = currentArtist,
+        currentTrackTitle = currentTrackTitle,
+        currentFavicon = currentFavicon,
+        playbackState = playbackState,
+        onPlayToggle = onPlayToggle,
+        modifier = modifier
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerBar(
@@ -1018,7 +1062,7 @@ fun RadioTab(
         }
     }
 
-    LaunchedEffect(shouldLoadMore) {
+    LaunchedEffect(shouldLoadMore, isLoading, stations.size) {
         if (shouldLoadMore && !isLoading && hasMore) {
             onLoadMore()
         }
@@ -1058,10 +1102,14 @@ fun RadioTab(
                         { onToggleFavorite(station) }
                     }
 
+                    val (tag1, tag2, tag3) = station.topTags
+
                     StationCard(
                         name = station.name,
                         faviconUrl = station.favicon,
-                        tags = station.tags,
+                        tag1 = tag1,
+                        tag2 = tag2,
+                        tag3 = tag3,
                         urlResolved = station.url_resolved,
                         isActive = isActive,
                         isFavorite = isFav,
@@ -1156,10 +1204,14 @@ fun FavoritesTab(
                         { onToggleFavorite(station) }
                     }
 
+                    val (tag1, tag2, tag3) = station.topTags
+
                     StationCard(
                         name = station.name,
                         faviconUrl = station.favicon,
-                        tags = station.tags,
+                        tag1 = tag1,
+                        tag2 = tag2,
+                        tag3 = tag3,
                         urlResolved = station.urlResolved,
                         isActive = isActive,
                         isFavorite = true,
@@ -1459,7 +1511,11 @@ fun SocialLinkRow(
 }
 
 @Composable
-fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
+fun SettingsTab(
+    viewModel: RadioViewModel,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
+) {
     val themeSetting by viewModel.themeSetting.collectAsStateWithLifecycle()
     val languageSetting by viewModel.languageSetting.collectAsStateWithLifecycle()
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
@@ -1482,6 +1538,7 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
     }
 
     LazyColumn(
+        state = listState,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.fillMaxSize()
@@ -1505,6 +1562,11 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                 selected = themeSetting,
                 onSelect = { viewModel.setThemeSetting(it) }
             )
+        }
+
+        // In-app Updates section
+        item {
+            AppUpdateSettingsCard(viewModel = viewModel)
         }
 
         // About section
@@ -1567,6 +1629,15 @@ fun SettingsTab(viewModel: RadioViewModel, modifier: Modifier = Modifier) {
                     url = "https://t.me/OFFpolice"
                 ) {
                     uriHandler.openUri("https://t.me/OFFpolice")
+                }
+
+                SocialLinkRow(
+                    title = "GitHub",
+                    handle = "github.com/OFFpolice/WebRadioBot",
+                    icon = SocialIcons.GitHub,
+                    url = "https://github.com/OFFpolice/WebRadioBot"
+                ) {
+                    uriHandler.openUri("https://github.com/OFFpolice/WebRadioBot")
                 }
 
                 SocialLinkRow(
