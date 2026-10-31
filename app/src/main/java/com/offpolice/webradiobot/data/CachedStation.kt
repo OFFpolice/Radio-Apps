@@ -1,8 +1,10 @@
 package com.offpolice.webradiobot.data
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "cached_stations")
 data class CachedStation(
     @PrimaryKey

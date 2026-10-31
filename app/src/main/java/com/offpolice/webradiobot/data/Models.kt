@@ -1,5 +1,6 @@
 package com.offpolice.webradiobot.data
 
+import androidx.compose.runtime.Immutable
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
@@ -45,12 +46,14 @@ fun isValidFaviconUrl(url: String?): Boolean {
     return host.length >= 4 && host.contains('.')
 }
 
+@Immutable
 @JsonClass(generateAdapter = true)
 data class RadioServer(
     val name: String,
     val ip: String? = null
 )
 
+@Immutable
 @JsonClass(generateAdapter = true)
 data class ApiStation(
     val changeid: String? = null,
@@ -67,16 +70,7 @@ data class ApiStation(
     val codec: String? = null,
     val bitrate: Int? = null
 ) {
-    @Transient
-    private var _cachedTags: Triple<String?, String?, String?>? = null
-
-    val topTags: Triple<String?, String?, String?>
-        get() {
-            var cached = _cachedTags
-            if (cached == null) {
-                cached = extractTopThreeTags(tags)
-                _cachedTags = cached
-            }
-            return cached
-        }
+    val topTags: Triple<String?, String?, String?> by lazy(LazyThreadSafetyMode.NONE) {
+        extractTopThreeTags(tags)
+    }
 }

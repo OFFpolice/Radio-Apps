@@ -1,9 +1,11 @@
 package com.offpolice.webradiobot.data
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.Ignore
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "favorite_stations")
 data class FavoriteStation(
     @PrimaryKey
@@ -13,16 +15,8 @@ data class FavoriteStation(
     val favicon: String? = null,
     val addedAt: Long = System.currentTimeMillis()
 ) {
-    @Ignore
-    private var _cachedTags: Triple<String?, String?, String?>? = null
-
-    val topTags: Triple<String?, String?, String?>
-        get() {
-            var cached = _cachedTags
-            if (cached == null) {
-                cached = extractTopThreeTags(tags)
-                _cachedTags = cached
-            }
-            return cached
-        }
+    @delegate:Ignore
+    val topTags: Triple<String?, String?, String?> by lazy(LazyThreadSafetyMode.NONE) {
+        extractTopThreeTags(tags)
+    }
 }

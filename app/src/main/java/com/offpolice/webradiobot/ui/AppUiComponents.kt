@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -240,6 +241,10 @@ fun LoaderPulseAnimation() {
     )
 }
 
+// Static pre-allocated duration ratios to prevent garbage collection spikes during animation
+private val EqAnimTimes = floatArrayOf(0.4f, 0.7f, 0.5f, 0.9f, 0.3f, 0.6f, 0.5f)
+private val CompactEqAnimTimes = floatArrayOf(0.3f, 0.6f, 0.4f, 0.5f)
+
 // Dancing Equalizer bar animations
 @Composable
 fun EqualizerAnimation(modifier: Modifier = Modifier, count: Int = 7) {
@@ -250,15 +255,13 @@ fun EqualizerAnimation(modifier: Modifier = Modifier, count: Int = 7) {
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "equalizer_pulse")
 
-        val animTimes = listOf(0.4f, 0.7f, 0.5f, 0.9f, 0.3f, 0.6f, 0.5f)
-
         for (i in 0 until count) {
             val ratio by infiniteTransition.animateFloat(
                 initialValue = 0.2f,
                 targetValue = 1.0f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(
-                        durationMillis = (1000 * animTimes[i % animTimes.size]).toInt(),
+                        durationMillis = (1000 * EqAnimTimes[i % EqAnimTimes.size]).toInt(),
                         easing = FastOutSlowInEasing
                     ),
                     repeatMode = RepeatMode.Reverse
@@ -294,7 +297,6 @@ fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.Bottom
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "compact_eq")
-        val animTimes = listOf(0.3f, 0.6f, 0.4f, 0.5f)
 
         for (i in 0 until 4) {
             val ratio by infiniteTransition.animateFloat(
@@ -302,7 +304,7 @@ fun CompactEqualizerAnimation(modifier: Modifier = Modifier) {
                 targetValue = 1.0f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(
-                        durationMillis = (500 * animTimes[i % animTimes.size]).toInt(),
+                        durationMillis = (500 * CompactEqAnimTimes[i % CompactEqAnimTimes.size]).toInt(),
                         easing = FastOutSlowInEasing
                     ),
                     repeatMode = RepeatMode.Reverse
@@ -884,7 +886,7 @@ fun PlayerBar(
             }
 
             val statusIcon = when (playbackState) {
-                PlaybackState.PLAYING -> Icons.Default.VolumeUp
+                PlaybackState.PLAYING -> Icons.AutoMirrored.Filled.VolumeUp
                 PlaybackState.BUFFERING -> Icons.Default.Sync
                 PlaybackState.PAUSED -> Icons.Default.PauseCircle
                 PlaybackState.ERROR -> Icons.Default.Error
@@ -1017,7 +1019,7 @@ fun EmptyPlaceholder(message: String, icon: ImageVector, modifier: Modifier = Mo
 @Composable
 fun RadioTab(
     stations: List<ApiStation>,
-    favorites: List<FavoriteStation>,
+    favoriteUrls: Set<String>,
     activeUrl: String?,
     playbackState: PlaybackState,
     isLoading: Boolean,
@@ -1046,11 +1048,6 @@ fun RadioTab(
         if (listState.firstVisibleItemIndex > 0) {
             listState.scrollToItem(0)
         }
-    }
-
-    // Precompute a hashed Set of favorite station URLs to enable O(1) lookups during scroll
-    val favoriteUrls = remember(favorites) {
-        favorites.map { it.urlResolved }.toSet()
     }
 
     // Infinite scroll detection - trigger when user is near bottom
@@ -1152,6 +1149,41 @@ fun RadioTab(
                 .padding(bottom = 20.dp, end = 20.dp)
         )
     }
+}
+
+// Backwards-compatible overload taking favorites List directly
+@Composable
+fun RadioTab(
+    stations: List<ApiStation>,
+    favorites: List<FavoriteStation>,
+    activeUrl: String?,
+    playbackState: PlaybackState,
+    isLoading: Boolean,
+    hasMore: Boolean,
+    onStationSelect: (ApiStation) -> Unit,
+    onToggleFavorite: (ApiStation) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
+    searchQuery: String = ""
+) {
+    val favoriteUrls = remember(favorites) {
+        favorites.mapTo(HashSet(favorites.size)) { it.urlResolved }
+    }
+    RadioTab(
+        stations = stations,
+        favoriteUrls = favoriteUrls,
+        activeUrl = activeUrl,
+        playbackState = playbackState,
+        isLoading = isLoading,
+        hasMore = hasMore,
+        onStationSelect = onStationSelect,
+        onToggleFavorite = onToggleFavorite,
+        onLoadMore = onLoadMore,
+        modifier = modifier,
+        listState = listState,
+        searchQuery = searchQuery
+    )
 }
 
 @Composable
@@ -1339,7 +1371,7 @@ fun LanguageSelectorRow(
                 color = TextSecondary
             )
             Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "Open language selection screen",
                 tint = TextSecondary,
                 modifier = Modifier.size(20.dp)
@@ -1378,7 +1410,7 @@ fun LanguageScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
                     tint = PrimaryPink,
                     modifier = Modifier
@@ -1502,7 +1534,7 @@ fun SocialLinkRow(
             )
         }
         Icon(
-            imageVector = Icons.Default.Launch,
+            imageVector = Icons.AutoMirrored.Filled.Launch,
             contentDescription = "Open Link",
             tint = TextMuted,
             modifier = Modifier.size(16.dp)
@@ -1537,6 +1569,13 @@ fun SettingsTab(
         )
     }
 
+    val currentLang = LocalLanguageSetting.current
+    val localizedThemeOptions = remember(themeOptions, currentLang) {
+        themeOptions.map { (opt, labelKey, hintKey) ->
+            Triple(opt, Loc.get(labelKey, currentLang), hintKey?.let { Loc.get(it, currentLang) })
+        }
+    }
+
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -1544,7 +1583,7 @@ fun SettingsTab(
         modifier = modifier.fillMaxSize()
     ) {
         // Language settings
-        item {
+        item(key = "settings_language", contentType = "settings_item") {
             LanguageSelectorRow(
                 selected = languageSetting,
                 options = languageOptions,
@@ -1553,24 +1592,22 @@ fun SettingsTab(
         }
 
         // Theme settings
-        item {
+        item(key = "settings_theme", contentType = "settings_item") {
             SettingsOptionCard(
                 title = stringLoc("setting_theme"),
-                options = themeOptions.map { (opt, labelKey, hintKey) ->
-                    Triple(opt, stringLoc(labelKey), hintKey?.let { stringLoc(it) })
-                },
+                options = localizedThemeOptions,
                 selected = themeSetting,
                 onSelect = { viewModel.setThemeSetting(it) }
             )
         }
 
         // In-app Updates section
-        item {
+        item(key = "settings_update", contentType = "settings_item") {
             AppUpdateSettingsCard(viewModel = viewModel)
         }
 
         // About section
-        item {
+        item(key = "settings_about", contentType = "settings_item") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
