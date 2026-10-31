@@ -22,7 +22,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -693,7 +692,6 @@ fun AppUpdateSettingsCard(
     modifier: Modifier = Modifier
 ) {
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
 
     val isChecking = updateState is AppUpdateState.Checking
     val isUpdateAvailable = updateState is AppUpdateState.UpdateAvailable
@@ -829,43 +827,6 @@ fun AppUpdateSettingsCard(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // GitHub Releases direct link
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .clickable {
-                    uriHandler.openUri(
-                        "https://github.com/${viewModel.updateManager.repoOwner}/${viewModel.updateManager.repoName}/releases"
-                    )
-                }
-                .padding(vertical = 8.dp, horizontal = 4.dp)
-        ) {
-            Icon(
-                imageVector = SocialIcons.GitHub,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = stringLoc("github_releases"),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextSecondary,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.Default.OpenInNew,
-                contentDescription = null,
-                tint = TextMuted,
-                modifier = Modifier.size(14.dp)
-            )
         }
     }
 }

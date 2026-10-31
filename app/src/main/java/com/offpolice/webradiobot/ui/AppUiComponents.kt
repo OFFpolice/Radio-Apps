@@ -1632,15 +1632,6 @@ fun SettingsTab(
                 }
 
                 SocialLinkRow(
-                    title = "GitHub",
-                    handle = "github.com/OFFpolice/WebRadioBot",
-                    icon = SocialIcons.GitHub,
-                    url = "https://github.com/OFFpolice/WebRadioBot"
-                ) {
-                    uriHandler.openUri("https://github.com/OFFpolice/WebRadioBot")
-                }
-
-                SocialLinkRow(
                     title = "X (Twitter)",
                     handle = "@OFFpolice2077",
                     icon = SocialIcons.X,

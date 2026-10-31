@@ -84,8 +84,7 @@ object Loc {
         "permission_unknown_sources" to "To install the update, please allow installing apps for WebRadioBot in Settings.",
         "open_settings" to "Open Settings",
         "update_size" to "Size",
-        "update_version_arrow" to "Update to",
-        "github_releases" to "GitHub Releases"
+        "update_version_arrow" to "Update to"
     )
 
     private val ru = mapOf(
@@ -146,8 +145,7 @@ object Loc {
         "permission_unknown_sources" to "Для установки обновления разрешите установку приложений для WebRadioBot в настройках.",
         "open_settings" to "Открыть настройки",
         "update_size" to "Размер",
-        "update_version_arrow" to "Обновление до",
-        "github_releases" to "Релизы GitHub"
+        "update_version_arrow" to "Обновление до"
     )
 
     private val uk = mapOf(
@@ -208,8 +206,7 @@ object Loc {
         "permission_unknown_sources" to "Для встановлення оновлення дозвольте встановлення додатків для WebRadioBot у налаштуваннях.",
         "open_settings" to "Відкрити налаштування",
         "update_size" to "Розмір",
-        "update_version_arrow" to "Оновлення до",
-        "github_releases" to "Релізи GitHub"
+        "update_version_arrow" to "Оновлення до"
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {
