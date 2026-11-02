@@ -3,6 +3,7 @@ package com.offpolice.webradiobot.updater
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -31,13 +32,44 @@ class AppUpdateManager(
 ) {
     private val prefs = context.getSharedPreferences("app_update_prefs", Context.MODE_PRIVATE)
 
+    private val _repositoryInfo = run {
+        val savedRepo = prefs.getString("github_repo", null)
+        val actualRepo = if (savedRepo == null || savedRepo == "WebRadioBot") {
+            prefs.edit().putString("github_repo", "Radio-Apps").apply()
+            "Radio-Apps"
+        } else {
+            savedRepo
+        }
+        val savedOwner = prefs.getString("github_owner", "OFFpolice") ?: "OFFpolice"
+        MutableStateFlow(savedOwner to actualRepo)
+    }
+    val repositoryInfo: StateFlow<Pair<String, String>> = _repositoryInfo.asStateFlow()
+
     var repoOwner: String
-        get() = prefs.getString("github_owner", "OFFpolice") ?: "OFFpolice"
-        set(value) = prefs.edit().putString("github_owner", value.trim()).apply()
+        get() = _repositoryInfo.value.first
+        set(value) {
+            val v = value.trim()
+            prefs.edit().putString("github_owner", v).apply()
+            _repositoryInfo.value = v to _repositoryInfo.value.second
+        }
 
     var repoName: String
-        get() = prefs.getString("github_repo", "WebRadioBot") ?: "WebRadioBot"
-        set(value) = prefs.edit().putString("github_repo", value.trim()).apply()
+        get() = _repositoryInfo.value.second
+        set(value) {
+            val v = value.trim()
+            prefs.edit().putString("github_repo", v).apply()
+            _repositoryInfo.value = _repositoryInfo.value.first to v
+        }
+
+    fun setRepository(owner: String, repo: String) {
+        val cleanOwner = owner.trim().removePrefix("https://github.com/").substringBefore("/").ifBlank { "OFFpolice" }
+        val cleanRepo = repo.trim().removeSuffix(".git").substringAfterLast("/").ifBlank { "Radio-Apps" }
+        prefs.edit()
+            .putString("github_owner", cleanOwner)
+            .putString("github_repo", cleanRepo)
+            .apply()
+        _repositoryInfo.value = cleanOwner to cleanRepo
+    }
 
     private val _updateState = MutableStateFlow<AppUpdateState>(AppUpdateState.Idle)
     val updateState: StateFlow<AppUpdateState> = _updateState.asStateFlow()
@@ -54,9 +86,11 @@ class AppUpdateManager(
     )
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .callTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(120, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     fun checkForUpdates(isManual: Boolean = false) {
@@ -68,57 +102,99 @@ class AppUpdateManager(
             _updateState.value = AppUpdateState.Checking
 
             try {
-                val release = withContext(Dispatchers.IO) {
+                val result = withContext(Dispatchers.IO) {
                     fetchLatestRelease(repoOwner, repoName)
                 }
 
-                if (release == null) {
-                    _updateState.value = AppUpdateState.NoUpdateAvailable(
-                        currentVersion = BuildConfig.VERSION_NAME
-                    )
-                    if (isManual) {
-                        _isUpdateDialogVisible.value = true
-                    }
-                    return@launch
-                }
+                when (result) {
+                    is FetchReleaseResult.Success -> {
+                        val release = result.release
+                        val remoteVersion = release.tagName.trim()
+                        val currentVersion = BuildConfig.VERSION_NAME
 
-                val remoteVersion = release.tagName.trim()
-                val currentVersion = BuildConfig.VERSION_NAME
+                        if (isNewerVersion(remoteVersion, currentVersion)) {
+                            val apkAsset = selectBestApkAsset(release.assets)
+                            if (apkAsset != null) {
+                                val updateInfo = AppUpdateInfo(
+                                    versionName = cleanVersion(remoteVersion),
+                                    releaseTitle = release.name?.ifBlank { null } ?: remoteVersion,
+                                    changelog = release.body?.trim().orEmpty(),
+                                    apkUrl = apkAsset.browserDownloadUrl,
+                                    apkSize = apkAsset.size,
+                                    releaseUrl = release.htmlUrl ?: "https://github.com/$repoOwner/$repoName/releases",
+                                    publishedAt = release.publishedAt
+                                )
 
-                if (isNewerVersion(remoteVersion, currentVersion)) {
-                    val apkAsset = selectBestApkAsset(release.assets)
-                    if (apkAsset != null) {
-                        val updateInfo = AppUpdateInfo(
-                            versionName = cleanVersion(remoteVersion),
-                            releaseTitle = release.name?.ifBlank { null } ?: remoteVersion,
-                            changelog = release.body?.trim().orEmpty(),
-                            apkUrl = apkAsset.browserDownloadUrl,
-                            apkSize = apkAsset.size,
-                            releaseUrl = release.htmlUrl ?: "https://github.com/$repoOwner/$repoName/releases",
-                            publishedAt = release.publishedAt
-                        )
+                                _updateState.value = AppUpdateState.UpdateAvailable(
+                                    info = updateInfo,
+                                    isManualCheck = isManual
+                                )
 
-                        _updateState.value = AppUpdateState.UpdateAvailable(
-                            info = updateInfo,
-                            isManualCheck = isManual
-                        )
-
-                        // If auto-check, check if this version was previously dismissed
-                        val dismissedVersion = prefs.getString("dismissed_version", null)
-                        if (isManual || dismissedVersion != updateInfo.versionName) {
-                            _isUpdateDialogVisible.value = true
+                                val dismissedVersion = prefs.getString("dismissed_version", null)
+                                if (isManual || dismissedVersion != updateInfo.versionName) {
+                                    _isUpdateDialogVisible.value = true
+                                }
+                            } else {
+                                // Release exists but has no .apk asset attached
+                                _updateState.value = AppUpdateState.NoApkInRelease(
+                                    tagName = remoteVersion,
+                                    repoOwner = repoOwner,
+                                    repoName = repoName
+                                )
+                                if (isManual) {
+                                    _isUpdateDialogVisible.value = true
+                                }
+                            }
+                        } else {
+                            _updateState.value = AppUpdateState.NoUpdateAvailable(
+                                currentVersion = currentVersion,
+                                latestRemoteTag = remoteVersion
+                            )
+                            if (isManual) {
+                                _isUpdateDialogVisible.value = true
+                            }
                         }
-                    } else {
-                        // Release exists but no APK asset attached
-                        _updateState.value = AppUpdateState.NoUpdateAvailable(currentVersion)
+                    }
+
+                    is FetchReleaseResult.NoReleases -> {
+                        _updateState.value = AppUpdateState.NoReleasesOnGitHub(
+                            repoOwner = result.repoOwner,
+                            repoName = result.repoName,
+                            currentVersion = BuildConfig.VERSION_NAME
+                        )
                         if (isManual) {
                             _isUpdateDialogVisible.value = true
                         }
                     }
-                } else {
-                    _updateState.value = AppUpdateState.NoUpdateAvailable(currentVersion)
-                    if (isManual) {
-                        _isUpdateDialogVisible.value = true
+
+                    is FetchReleaseResult.RepoNotFound -> {
+                        _updateState.value = AppUpdateState.Error(
+                            message = "Репозиторий ${result.repoOwner}/${result.repoName} не найден на GitHub (HTTP 404). Проверьте имя репозитория и статус Public.",
+                            isManualCheck = isManual
+                        )
+                        if (isManual) {
+                            _isUpdateDialogVisible.value = true
+                        }
+                    }
+
+                    is FetchReleaseResult.RateLimited -> {
+                        _updateState.value = AppUpdateState.Error(
+                            message = "Превышен лимит запросов к GitHub API (60 в час). Попробуйте позже.",
+                            isManualCheck = isManual
+                        )
+                        if (isManual) {
+                            _isUpdateDialogVisible.value = true
+                        }
+                    }
+
+                    is FetchReleaseResult.Error -> {
+                        _updateState.value = AppUpdateState.Error(
+                            message = result.message,
+                            isManualCheck = isManual
+                        )
+                        if (isManual) {
+                            _isUpdateDialogVisible.value = true
+                        }
                     }
                 }
             } catch (e: CancellationException) {
@@ -136,7 +212,15 @@ class AppUpdateManager(
         }
     }
 
-    private fun fetchLatestRelease(owner: String, repo: String): GithubRelease? {
+    private sealed class FetchReleaseResult {
+        data class Success(val release: GithubRelease) : FetchReleaseResult()
+        data class NoReleases(val repoOwner: String, val repoName: String) : FetchReleaseResult()
+        data class RepoNotFound(val repoOwner: String, val repoName: String) : FetchReleaseResult()
+        data class RateLimited(val message: String) : FetchReleaseResult()
+        data class Error(val message: String) : FetchReleaseResult()
+    }
+
+    private fun fetchLatestRelease(owner: String, repo: String): FetchReleaseResult {
         val latestUrl = "https://api.github.com/repos/$owner/$repo/releases/latest"
         val request = Request.Builder()
             .url(latestUrl)
@@ -146,28 +230,60 @@ class AppUpdateManager(
 
         try {
             val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val json = response.body?.string() ?: return null
-                return releaseAdapter.fromJson(json)
-            } else if (response.code == 404) {
-                // If latest endpoint returns 404, check releases list
-                val listUrl = "https://api.github.com/repos/$owner/$repo/releases?per_page=5"
-                val listRequest = Request.Builder()
-                    .url(listUrl)
-                    .header("User-Agent", "WebRadioBot-Android-App")
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .build()
-                val listResponse = okHttpClient.newCall(listRequest).execute()
-                if (listResponse.isSuccessful) {
-                    val listJson = listResponse.body?.string() ?: return null
-                    val list = releaseListAdapter.fromJson(listJson)
-                    return list?.firstOrNull { it.draft != true }
+            response.use { resp ->
+                if (resp.isSuccessful) {
+                    val json = resp.body?.string() ?: return FetchReleaseResult.Error("Empty response body")
+                    val release = releaseAdapter.fromJson(json)
+                    return if (release != null) {
+                        FetchReleaseResult.Success(release)
+                    } else {
+                        FetchReleaseResult.Error("Failed to parse release info")
+                    }
                 }
+
+                if (resp.code == 403) {
+                    return FetchReleaseResult.RateLimited("GitHub rate limit exceeded")
+                }
+
+                if (resp.code == 404) {
+                    // Check list of releases (handles repos where latest isn't marked or pre-releases exist)
+                    val listUrl = "https://api.github.com/repos/$owner/$repo/releases?per_page=10"
+                    val listRequest = Request.Builder()
+                        .url(listUrl)
+                        .header("User-Agent", "WebRadioBot-Android-App")
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .build()
+
+                    val listResp = okHttpClient.newCall(listRequest).execute()
+                    listResp.use { lResp ->
+                        if (lResp.isSuccessful) {
+                            val listJson = lResp.body?.string() ?: return FetchReleaseResult.NoReleases(owner, repo)
+                            val list = releaseListAdapter.fromJson(listJson)
+                            val bestRelease = list?.firstOrNull { it.draft != true }
+                            return if (bestRelease != null) {
+                                FetchReleaseResult.Success(bestRelease)
+                            } else {
+                                FetchReleaseResult.NoReleases(owner, repo)
+                            }
+                        }
+
+                        if (lResp.code == 404) {
+                            return FetchReleaseResult.RepoNotFound(owner, repo)
+                        }
+
+                        if (lResp.code == 403) {
+                            return FetchReleaseResult.RateLimited("GitHub rate limit exceeded")
+                        }
+
+                        return FetchReleaseResult.Error("HTTP ${lResp.code}: ${lResp.message}")
+                    }
+                }
+
+                return FetchReleaseResult.Error("HTTP ${resp.code}: ${resp.message}")
             }
         } catch (e: Exception) {
-            throw e
+            return FetchReleaseResult.Error(e.localizedMessage ?: "Connection error")
         }
-        return null
     }
 
     private fun selectBestApkAsset(assets: List<GithubAsset>): GithubAsset? {
@@ -202,6 +318,7 @@ class AppUpdateManager(
                 val request = Request.Builder()
                     .url(info.apkUrl)
                     .header("User-Agent", "WebRadioBot-Android-App")
+                    .header("Accept", "application/octet-stream")
                     .build()
 
                 withContext(Dispatchers.IO) {
@@ -225,7 +342,7 @@ class AppUpdateManager(
                                 downloaded += bytesRead
 
                                 val now = System.currentTimeMillis()
-                                if (now - lastEmitTime >= 120L || downloaded == totalLength) {
+                                if (now - lastEmitTime >= 100L || downloaded == totalLength) {
                                     lastEmitTime = now
                                     val prog = if (totalLength > 0) {
                                         downloaded.toFloat() / totalLength.toFloat()
@@ -324,7 +441,15 @@ class AppUpdateManager(
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+
+            // Grant read permission to all matching package installers on the device
+            val resInfoList = activity.packageManager.queryIntentActivities(installIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                activity.grantUriPermission(resolveInfo.activityInfo.packageName, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
             activity.startActivity(installIntent)

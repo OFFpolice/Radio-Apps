@@ -84,7 +84,15 @@ object Loc {
         "permission_unknown_sources" to "To install the update, please allow installing apps for WebRadioBot in Settings.",
         "open_settings" to "Open Settings",
         "update_size" to "Size",
-        "update_version_arrow" to "Update to"
+        "update_version_arrow" to "Update to",
+        "no_releases_title" to "No Releases Found",
+        "no_releases_desc" to "There are no published releases yet in repository %s on GitHub. To enable updates, create a Release on GitHub and attach an APK file.",
+        "no_apk_title" to "No APK Attached",
+        "no_apk_desc" to "Release %s was found on GitHub, but no .apk file is attached to it.",
+        "repo_label" to "GitHub Repository",
+        "edit_repo" to "Change Repository",
+        "save" to "Save",
+        "btn_close" to "Close"
     )
 
     private val ru = mapOf(
@@ -145,7 +153,15 @@ object Loc {
         "permission_unknown_sources" to "Для установки обновления разрешите установку приложений для WebRadioBot в настройках.",
         "open_settings" to "Открыть настройки",
         "update_size" to "Размер",
-        "update_version_arrow" to "Обновление до"
+        "update_version_arrow" to "Обновление до",
+        "no_releases_title" to "Релизы не найдены",
+        "no_releases_desc" to "В репозитории %s на GitHub пока нет ни одного опубликованного релиза. Чтобы выпустить обновление, создайте Release на GitHub и прикрепите APK-файл.",
+        "no_apk_title" to "В релизе нет APK",
+        "no_apk_desc" to "Найден релиз %s на GitHub, но к нему не прикреплён установочный файл .apk.",
+        "repo_label" to "Репозиторий GitHub",
+        "edit_repo" to "Сменить репозиторий",
+        "save" to "Сохранить",
+        "btn_close" to "Закрыть"
     )
 
     private val uk = mapOf(
@@ -206,7 +222,15 @@ object Loc {
         "permission_unknown_sources" to "Для встановлення оновлення дозвольте встановлення додатків для WebRadioBot у налаштуваннях.",
         "open_settings" to "Відкрити налаштування",
         "update_size" to "Розмір",
-        "update_version_arrow" to "Оновлення до"
+        "update_version_arrow" to "Оновлення до",
+        "no_releases_title" to "Релізи не знайдено",
+        "no_releases_desc" to "У репозиторії %s на GitHub ще немає жодного опублікованого релізу. Щоб випустити оновлення, створіть Release на GitHub та прикріпіть APK-файл.",
+        "no_apk_title" to "У релізі немає APK",
+        "no_apk_desc" to "Знайдено реліз %s на GitHub, але до нього не прикріплено інсталяційний файл .apk.",
+        "repo_label" to "Репозиторій GitHub",
+        "edit_repo" to "Змінити репозиторій",
+        "save" to "Зберегти",
+        "btn_close" to "Закрити"
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {

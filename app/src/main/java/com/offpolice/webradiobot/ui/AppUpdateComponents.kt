@@ -142,6 +142,22 @@ fun AppUpdateDialog(
                 is AppUpdateState.NoUpdateAvailable -> {
                     NoUpdateContent(
                         currentVersion = state.currentVersion,
+                        latestRemoteTag = state.latestRemoteTag,
+                        onDismiss = { viewModel.dismissUpdateDialog(rememberDismissed = false) }
+                    )
+                }
+
+                is AppUpdateState.NoReleasesOnGitHub -> {
+                    NoReleasesContent(
+                        repoOwner = state.repoOwner,
+                        repoName = state.repoName,
+                        onDismiss = { viewModel.dismissUpdateDialog(rememberDismissed = false) }
+                    )
+                }
+
+                is AppUpdateState.NoApkInRelease -> {
+                    NoApkContent(
+                        tagName = state.tagName,
                         onDismiss = { viewModel.dismissUpdateDialog(rememberDismissed = false) }
                     )
                 }
@@ -557,6 +573,7 @@ private fun ReadyToInstallContent(
 @Composable
 private fun NoUpdateContent(
     currentVersion: String,
+    latestRemoteTag: String? = null,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -590,10 +607,132 @@ private fun NoUpdateContent(
 
         Spacer(modifier = Modifier.height(6.dp))
 
+        val remoteTagText = if (latestRemoteTag != null) " (GitHub: $latestRemoteTag)" else ""
         Text(
-            text = "${stringLoc("current_version")}: v$currentVersion",
+            text = "${stringLoc("current_version")}: v$currentVersion$remoteTagText",
             fontSize = 13.sp,
             color = TextSecondary
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onDismiss,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PrimaryPink,
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(44.dp)
+        ) {
+            Text(text = "OK", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun NoReleasesContent(
+    repoOwner: String,
+    repoName: String,
+    onDismiss: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFFFA000).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFFFFA000),
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringLoc("no_releases_title"),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = String.format(stringLoc("no_releases_desc"), "$repoOwner/$repoName"),
+            fontSize = 13.sp,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onDismiss,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PrimaryPink,
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(44.dp)
+        ) {
+            Text(text = "OK", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun NoApkContent(
+    tagName: String,
+    onDismiss: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE91E63).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = PrimaryPink,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringLoc("no_apk_title"),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = String.format(stringLoc("no_apk_desc"), tagName),
+            fontSize = 13.sp,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -693,9 +832,12 @@ fun AppUpdateSettingsCard(
     modifier: Modifier = Modifier
 ) {
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val repoInfo by viewModel.updateManager.repositoryInfo.collectAsStateWithLifecycle()
 
     val isChecking = updateState is AppUpdateState.Checking
     val isUpdateAvailable = updateState is AppUpdateState.UpdateAvailable
+
+    var showEditRepoDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -743,6 +885,60 @@ fun AppUpdateSettingsCard(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
+
+        // Repository info line
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(SearchBg.copy(alpha = 0.6f))
+                .clickable { showEditRepoDialog = true }
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Code,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = stringLoc("repo_label"),
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+                    Text(
+                        text = "${repoInfo.first}/${repoInfo.second}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = { showEditRepoDialog = true },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = stringLoc("edit_repo"),
+                    tint = PrimaryPink,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Update status notification if available
         if (isUpdateAvailable) {
@@ -827,6 +1023,129 @@ fun AppUpdateSettingsCard(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+        }
+    }
+
+    if (showEditRepoDialog) {
+        EditRepositoryDialog(
+            initialOwner = repoInfo.first,
+            initialRepo = repoInfo.second,
+            onSave = { owner, repo ->
+                viewModel.updateManager.setRepository(owner, repo)
+                showEditRepoDialog = false
+                viewModel.checkForUpdates(isManual = true)
+            },
+            onDismiss = { showEditRepoDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun EditRepositoryDialog(
+    initialOwner: String,
+    initialRepo: String,
+    onSave: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var owner by remember { mutableStateOf(initialOwner) }
+    var repo by remember { mutableStateOf(initialRepo) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(CardBg)
+                .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                .padding(20.dp)
+        ) {
+            Column {
+                Text(
+                    text = stringLoc("edit_repo"),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = owner,
+                    onValueChange = { owner = it },
+                    label = { Text("GitHub Owner") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryPink,
+                        focusedLabelColor = PrimaryPink,
+                        cursorColor = PrimaryPink
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = repo,
+                    onValueChange = { repo = it },
+                    label = { Text("Repository Name") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryPink,
+                        focusedLabelColor = PrimaryPink,
+                        cursorColor = PrimaryPink
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = {
+                            owner = "OFFpolice"
+                            repo = "Radio-Apps"
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "OFFpolice/Radio-Apps",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = PrimaryPink
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text(text = stringLoc("btn_cancel"), fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = { onSave(owner.trim(), repo.trim()) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryPink,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text(text = stringLoc("save"), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

@@ -54,7 +54,22 @@ sealed class AppUpdateState {
     @Immutable
     data class NoUpdateAvailable(
         val currentVersion: String,
+        val latestRemoteTag: String? = null,
         val timestamp: Long = System.currentTimeMillis()
+    ) : AppUpdateState()
+
+    @Immutable
+    data class NoReleasesOnGitHub(
+        val repoOwner: String,
+        val repoName: String,
+        val currentVersion: String
+    ) : AppUpdateState()
+
+    @Immutable
+    data class NoApkInRelease(
+        val tagName: String,
+        val repoOwner: String,
+        val repoName: String
     ) : AppUpdateState()
 
     @Immutable
