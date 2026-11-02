@@ -184,7 +184,9 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         // 3. Silent check for updates after launch
         viewModelScope.launch {
             delay(2500)
-            updateManager.checkForUpdates(isManual = false)
+            if (updateManager.autoCheckOnStartup.value) {
+                updateManager.checkForUpdates(isManual = false)
+            }
         }
     }
 

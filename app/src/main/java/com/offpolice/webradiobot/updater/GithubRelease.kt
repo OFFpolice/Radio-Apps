@@ -32,6 +32,11 @@ data class GithubAsset(
     val contentType: String? = null
 )
 
+enum class UpdateChannel {
+    STABLE,
+    PRERELEASE
+}
+
 @Immutable
 data class AppUpdateInfo(
     val versionName: String,
@@ -40,8 +45,29 @@ data class AppUpdateInfo(
     val apkUrl: String,
     val apkSize: Long,
     val releaseUrl: String,
-    val publishedAt: String?
-)
+    val publishedAt: String?,
+    val isPrerelease: Boolean = false
+) {
+    companion object {
+        fun sanitizeChangelog(raw: String?): String {
+            if (raw.isNullOrBlank()) return ""
+            return raw
+                .lines()
+                .filterNot { line ->
+                    val trimmed = line.trim()
+                    trimmed.startsWith("**Full Changelog**", ignoreCase = true) ||
+                    trimmed.startsWith("Full Changelog:", ignoreCase = true) ||
+                    trimmed.startsWith("<!--") ||
+                    trimmed.endsWith("-->")
+                }
+                .joinToString("\n") { line ->
+                    // Replace markdown PR links like "in https://github.com/.../pull/123" with clean text
+                    line.replace(Regex("in https://github.com/[^/]+/[^/]+/pull/(\\d+)"), "(#$1)")
+                }
+                .trim()
+        }
+    }
+}
 
 @Stable
 sealed class AppUpdateState {

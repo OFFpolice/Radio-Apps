@@ -35,6 +35,7 @@ import com.offpolice.webradiobot.BuildConfig
 import com.offpolice.webradiobot.ui.theme.*
 import com.offpolice.webradiobot.updater.AppUpdateInfo
 import com.offpolice.webradiobot.updater.AppUpdateState
+import com.offpolice.webradiobot.updater.UpdateChannel
 import java.util.Locale
 
 fun formatFileSize(bytes: Long): String {
@@ -46,6 +47,15 @@ fun formatFileSize(bytes: Long): String {
         val kb = bytes / 1024.0
         String.format(Locale.US, "%.0f KB", kb)
     }
+}
+
+@Composable
+fun formatLastChecked(timestamp: Long): String {
+    if (timestamp <= 0L) return stringLoc("never")
+    val diff = System.currentTimeMillis() - timestamp
+    if (diff < 60_000L) return stringLoc("just_now")
+    val sdf = remember { java.text.SimpleDateFormat("dd.MM, HH:mm", Locale.getDefault()) }
+    return sdf.format(java.util.Date(timestamp))
 }
 
 @Composable
@@ -247,6 +257,16 @@ private fun UpdateAvailableContent(
                 fontWeight = FontWeight.Bold,
                 color = PrimaryPink
             )
+            if (info.isPrerelease) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFFFA000).copy(alpha = 0.15f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text("Pre-release", color = Color(0xFFFFA000), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
             if (info.apkSize > 0) {
                 Text(
                     text = "• ${formatFileSize(info.apkSize)}",
@@ -833,6 +853,9 @@ fun AppUpdateSettingsCard(
 ) {
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val repoInfo by viewModel.updateManager.repositoryInfo.collectAsStateWithLifecycle()
+    val autoCheck by viewModel.updateManager.autoCheckOnStartup.collectAsStateWithLifecycle()
+    val currentChannel by viewModel.updateManager.updateChannel.collectAsStateWithLifecycle()
+    val lastCheckedTimestamp by viewModel.updateManager.lastCheckedTimestamp.collectAsStateWithLifecycle()
 
     val isChecking = updateState is AppUpdateState.Checking
     val isUpdateAvailable = updateState is AppUpdateState.UpdateAvailable
@@ -940,6 +963,85 @@ fun AppUpdateSettingsCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Startup auto-check switch
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringLoc("auto_check_updates"),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "${stringLoc("last_checked")}: ${formatLastChecked(lastCheckedTimestamp)}",
+                    fontSize = 12.sp,
+                    color = TextMuted
+                )
+            }
+
+            Switch(
+                checked = autoCheck,
+                onCheckedChange = { viewModel.updateManager.setAutoCheckOnStartup(it) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = PrimaryPink,
+                    uncheckedThumbColor = TextMuted,
+                    uncheckedTrackColor = SearchBg
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Update channel chips (Stable vs Pre-release)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            FilterChip(
+                selected = currentChannel == UpdateChannel.STABLE,
+                onClick = { viewModel.updateManager.setUpdateChannel(UpdateChannel.STABLE) },
+                label = { Text(text = stringLoc("channel_stable"), fontSize = 12.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = PrimaryPink.copy(alpha = 0.15f),
+                    selectedLabelColor = PrimaryPink
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = currentChannel == UpdateChannel.STABLE,
+                    borderColor = TextPrimary.copy(alpha = 0.1f),
+                    selectedBorderColor = PrimaryPink
+                ),
+                shape = RoundedCornerShape(8.dp)
+            )
+
+            FilterChip(
+                selected = currentChannel == UpdateChannel.PRERELEASE,
+                onClick = { viewModel.updateManager.setUpdateChannel(UpdateChannel.PRERELEASE) },
+                label = { Text(text = stringLoc("channel_prerelease"), fontSize = 12.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = PrimaryPink.copy(alpha = 0.15f),
+                    selectedLabelColor = PrimaryPink
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = currentChannel == UpdateChannel.PRERELEASE,
+                    borderColor = TextPrimary.copy(alpha = 0.1f),
+                    selectedBorderColor = PrimaryPink
+                ),
+                shape = RoundedCornerShape(8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
         // Update status notification if available
         if (isUpdateAvailable) {
             val available = (updateState as AppUpdateState.UpdateAvailable).info
@@ -966,7 +1068,7 @@ fun AppUpdateSettingsCard(
                         color = TextPrimary
                     )
                     Text(
-                        text = "v${available.versionName}",
+                        text = "v${available.versionName}${if (available.isPrerelease) " (Beta)" else ""}",
                         fontSize = 12.sp,
                         color = PrimaryPink
                     )

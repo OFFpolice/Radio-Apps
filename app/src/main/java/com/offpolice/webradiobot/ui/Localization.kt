@@ -92,7 +92,15 @@ object Loc {
         "repo_label" to "GitHub Repository",
         "edit_repo" to "Change Repository",
         "save" to "Save",
-        "btn_close" to "Close"
+        "btn_close" to "Close",
+        "auto_check_updates" to "Check on startup",
+        "update_channel" to "Update channel",
+        "channel_stable" to "Stable only",
+        "channel_prerelease" to "Include Pre-releases",
+        "last_checked" to "Last checked",
+        "never" to "Never",
+        "just_now" to "Just now",
+        "apk_corrupted" to "Downloaded file is corrupted. Please try again."
     )
 
     private val ru = mapOf(
@@ -161,7 +169,15 @@ object Loc {
         "repo_label" to "Репозиторий GitHub",
         "edit_repo" to "Сменить репозиторий",
         "save" to "Сохранить",
-        "btn_close" to "Закрыть"
+        "btn_close" to "Закрыть",
+        "auto_check_updates" to "Проверять при запуске",
+        "update_channel" to "Канал обновлений",
+        "channel_stable" to "Только стабильные",
+        "channel_prerelease" to "Включая предварительные (Бета)",
+        "last_checked" to "Последняя проверка",
+        "never" to "Никогда",
+        "just_now" to "Только что",
+        "apk_corrupted" to "Скачанный файл повреждён. Попробуйте скачать снова."
     )
 
     private val uk = mapOf(
@@ -230,7 +246,15 @@ object Loc {
         "repo_label" to "Репозиторій GitHub",
         "edit_repo" to "Змінити репозиторій",
         "save" to "Зберегти",
-        "btn_close" to "Закрити"
+        "btn_close" to "Закрити",
+        "auto_check_updates" to "Перевіряти при запуску",
+        "update_channel" to "Канал оновлень",
+        "channel_stable" to "Тільки стабільні",
+        "channel_prerelease" to "Включаючи попередні (Бета)",
+        "last_checked" to "Остання перевірка",
+        "never" to "Ніколи",
+        "just_now" to "Щойно",
+        "apk_corrupted" to "Завантажений файл пошкоджений. Спробуйте завантажити знову."
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {
