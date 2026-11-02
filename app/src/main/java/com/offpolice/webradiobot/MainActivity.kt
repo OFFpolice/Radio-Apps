@@ -267,8 +267,5 @@ fun MainAppContent(viewModel: RadioViewModel) {
                 }
             )
         }
-
-        // In-app GitHub update dialog
-        AppUpdateDialog(viewModel = viewModel)
     }
 }

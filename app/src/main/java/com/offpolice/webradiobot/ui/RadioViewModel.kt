@@ -180,42 +180,6 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
                     fetchStations(reset = true, query = query)
                 }
         }
-
-        // 3. Silent check for updates after launch
-        viewModelScope.launch {
-            delay(2500)
-            if (updateManager.autoCheckOnStartup.value) {
-                updateManager.checkForUpdates(isManual = false)
-            }
-        }
-    }
-
-    val updateManager = com.offpolice.webradiobot.updater.AppUpdateManager(application, viewModelScope)
-    val updateState: StateFlow<com.offpolice.webradiobot.updater.AppUpdateState> = updateManager.updateState
-    val isUpdateDialogVisible: StateFlow<Boolean> = updateManager.isUpdateDialogVisible
-
-    fun checkForUpdates(isManual: Boolean = true) {
-        updateManager.checkForUpdates(isManual)
-    }
-
-    fun startUpdateDownload(info: com.offpolice.webradiobot.updater.AppUpdateInfo) {
-        updateManager.startDownload(info)
-    }
-
-    fun cancelUpdateDownload() {
-        updateManager.cancelDownload()
-    }
-
-    fun dismissUpdateDialog(rememberDismissed: Boolean = false) {
-        updateManager.dismissDialog(rememberDismissed)
-    }
-
-    fun showUpdateDialog() {
-        updateManager.showDialog()
-    }
-
-    fun installUpdateApk(activity: android.app.Activity, apkPath: String) {
-        updateManager.installApk(activity, apkPath)
     }
 
     fun selectTab(tab: AppTab) {

@@ -124,41 +124,5 @@ object SocialIcons {
         }.build()
     }
 
-    val GitHub: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "GitHub",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).path(fill = SolidColor(Color.Black)) {
-            moveTo(12f, 2f)
-            curveTo(6.477f, 2f, 2f, 6.484f, 2f, 12.017f)
-            curveTo(2f, 16.446f, 4.87f, 20.198f, 8.847f, 21.527f)
-            curveTo(9.347f, 21.618f, 9.53f, 21.312f, 9.53f, 21.045f)
-            curveTo(9.53f, 20.806f, 9.521f, 20.174f, 9.516f, 19.333f)
-            curveTo(6.734f, 19.938f, 6.147f, 17.99f, 6.147f, 17.99f)
-            curveTo(5.692f, 16.836f, 5.038f, 16.529f, 5.038f, 16.529f)
-            curveTo(4.131f, 15.908f, 5.107f, 15.92f, 5.107f, 15.92f)
-            curveTo(6.11f, 15.991f, 6.638f, 16.953f, 6.638f, 16.953f)
-            curveTo(7.53f, 18.479f, 8.977f, 18.039f, 9.547f, 17.783f)
-            curveTo(9.638f, 17.137f, 9.897f, 16.697f, 10.183f, 16.447f)
-            curveTo(7.962f, 16.195f, 5.627f, 15.337f, 5.627f, 11.517f)
-            curveTo(5.627f, 10.429f, 6.016f, 9.539f, 6.654f, 8.841f)
-            curveTo(6.551f, 8.589f, 6.208f, 7.575f, 6.752f, 6.206f)
-            curveTo(6.752f, 6.206f, 7.589f, 5.938f, 9.497f, 7.23f)
-            curveTo(10.293f, 7.009f, 11.147f, 6.899f, 12f, 6.895f)
-            curveTo(12.853f, 6.899f, 13.708f, 7.009f, 14.505f, 7.23f)
-            curveTo(16.411f, 5.938f, 17.246f, 6.206f, 17.246f, 6.206f)
-            curveTo(17.792f, 7.575f, 17.449f, 8.589f, 17.347f, 8.841f)
-            curveTo(17.987f, 9.539f, 18.371f, 10.429f, 18.371f, 11.517f)
-            curveTo(18.371f, 15.347f, 16.031f, 16.191f, 13.801f, 16.438f)
-            curveTo(14.159f, 16.746f, 14.479f, 17.355f, 14.479f, 18.289f)
-            curveTo(14.479f, 19.633f, 14.467f, 20.716f, 14.467f, 21.045f)
-            curveTo(14.467f, 21.316f, 14.646f, 21.625f, 15.158f, 21.525f)
-            curveTo(19.131f, 20.191f, 22f, 16.444f, 22f, 12.017f)
-            curveTo(22f, 6.484f, 17.522f, 2f, 12f, 2f)
-            close()
-        }.build()
-    }
 }
+

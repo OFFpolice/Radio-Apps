@@ -1601,11 +1601,6 @@ fun SettingsTab(
             )
         }
 
-        // In-app Updates section
-        item(key = "settings_update", contentType = "settings_item") {
-            AppUpdateSettingsCard(viewModel = viewModel)
-        }
-
         // About section
         item(key = "settings_about", contentType = "settings_item") {
             Column(
