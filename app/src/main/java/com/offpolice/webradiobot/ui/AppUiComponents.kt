@@ -1640,6 +1640,16 @@ fun SettingsTab(
             )
         }
 
+        // GitHub Updates section
+        item(key = "settings_updates", contentType = "settings_item") {
+            val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+            SettingsUpdateSection(
+                currentVersion = viewModel.updateManager.currentVersionName,
+                updateState = updateState,
+                onCheckForUpdates = { viewModel.checkForUpdates(isManual = true) }
+            )
+        }
+
         // About section
         item(key = "settings_about", contentType = "settings_item") {
             Column(

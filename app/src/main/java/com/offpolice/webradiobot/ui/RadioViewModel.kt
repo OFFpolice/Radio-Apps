@@ -11,6 +11,11 @@ import com.offpolice.webradiobot.data.FavoriteStation
 import com.offpolice.webradiobot.data.RadioRepository
 import com.offpolice.webradiobot.player.PlaybackState
 import com.offpolice.webradiobot.player.RadioPlayerManager
+import com.offpolice.webradiobot.updater.AppUpdateManager
+import com.offpolice.webradiobot.updater.GithubAsset
+import com.offpolice.webradiobot.updater.GithubRelease
+import com.offpolice.webradiobot.updater.UpdateState
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -39,6 +44,14 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
 
     private val repository = RadioRepository(application)
     val playerManager = RadioPlayerManager.getInstance(application)
+    val updateManager = AppUpdateManager.getInstance(application)
+
+    val updateState: StateFlow<UpdateState> = updateManager.updateState
+    val updatePercentage: StateFlow<Float> = updateManager.percentageFlow
+    val isUpdateInProcess: StateFlow<Boolean> = updateManager.isUpdateInProcessFlow
+
+    private val _isUpdateDialogVisible = MutableStateFlow(false)
+    val isUpdateDialogVisible: StateFlow<Boolean> = _isUpdateDialogVisible.asStateFlow()
 
     private val sharedPrefs = application.getSharedPreferences("webradio_prefs", Context.MODE_PRIVATE)
 
@@ -180,6 +193,51 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
                     fetchStations(reset = true, query = query)
                 }
         }
+
+        // 3. Check for updates automatically in background after startup
+        viewModelScope.launch {
+            delay(3000)
+            updateManager.checkForUpdates(isManualCheck = false)
+            if (updateManager.updateState.value is UpdateState.UpdateAvailable) {
+                _isUpdateDialogVisible.value = true
+            }
+        }
+    }
+
+    fun checkForUpdates(isManual: Boolean = false) {
+        viewModelScope.launch {
+            if (isManual) {
+                _isUpdateDialogVisible.value = true
+            }
+            updateManager.checkForUpdates(isManualCheck = isManual)
+            val currentState = updateManager.updateState.value
+            if (currentState is UpdateState.UpdateAvailable || (isManual && (currentState is UpdateState.UpToDate || currentState is UpdateState.Error))) {
+                _isUpdateDialogVisible.value = true
+            }
+        }
+    }
+
+    fun startUpdateDownload(release: GithubRelease, asset: GithubAsset) {
+        _isUpdateDialogVisible.value = true
+        updateManager.startDownload(viewModelScope, release, asset)
+    }
+
+    fun cancelUpdateDownload() {
+        updateManager.cancelDownload()
+        _isUpdateDialogVisible.value = false
+    }
+
+    fun installUpdateApk(apkFile: File) {
+        updateManager.installApk(apkFile)
+    }
+
+    fun dismissUpdateDialog() {
+        _isUpdateDialogVisible.value = false
+        updateManager.dismissUpdate()
+    }
+
+    fun showUpdateDialog() {
+        _isUpdateDialogVisible.value = true
     }
 
     fun selectTab(tab: AppTab) {

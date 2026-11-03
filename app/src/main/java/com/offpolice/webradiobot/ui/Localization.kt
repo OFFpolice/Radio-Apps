@@ -66,7 +66,26 @@ object Loc {
         "state_stations" to "Fetching station list...",
         "state_ready" to "Ready!",
         "btn_cancel" to "Cancel",
-        "scroll_to_top" to "Top"
+        "scroll_to_top" to "Top",
+        "setting_updates" to "Updates",
+        "check_updates" to "Check for updates",
+        "checking_updates" to "Checking for updates...",
+        "current_version" to "Current version",
+        "latest_version_installed" to "You have the latest version installed",
+        "new_version_available" to "New version available",
+        "update_now" to "Update now",
+        "update_later" to "Later",
+        "downloading_update" to "Downloading update...",
+        "install_update" to "Install",
+        "update_downloaded" to "Update downloaded",
+        "update_error" to "Update error",
+        "changelog_title" to "What's new:",
+        "no_changelog" to "No release notes provided",
+        "permission_unknown_sources" to "Please allow installing apps from this source in settings",
+        "open_settings" to "Settings",
+        "update_size" to "Size",
+        "repo_label" to "Repository: OFFpolice/Radio-Apps",
+        "no_apk_found" to "No APK file found in this release"
     )
 
     private val ru = mapOf(
@@ -109,7 +128,26 @@ object Loc {
         "state_stations" to "Получение списка станций...",
         "state_ready" to "Готово!",
         "btn_cancel" to "Отмена",
-        "scroll_to_top" to "Наверх"
+        "scroll_to_top" to "Наверх",
+        "setting_updates" to "Обновления",
+        "check_updates" to "Проверить обновления",
+        "checking_updates" to "Проверка обновлений...",
+        "current_version" to "Текущая версия",
+        "latest_version_installed" to "У вас установлена последняя версия",
+        "new_version_available" to "Доступно обновление",
+        "update_now" to "Обновить сейчас",
+        "update_later" to "Позже",
+        "downloading_update" to "Загрузка обновления...",
+        "install_update" to "Установить",
+        "update_downloaded" to "Обновление загружено",
+        "update_error" to "Ошибка обновления",
+        "changelog_title" to "Что нового:",
+        "no_changelog" to "Описание обновления отсутствует",
+        "permission_unknown_sources" to "Разрешите установку приложений из этого источника в настройках",
+        "open_settings" to "Настройки",
+        "update_size" to "Размер",
+        "repo_label" to "Репозиторий: OFFpolice/Radio-Apps",
+        "no_apk_found" to "В этом релизе не найден файл APK"
     )
 
     private val uk = mapOf(
@@ -152,7 +190,26 @@ object Loc {
         "state_stations" to "Отримання списку станцій...",
         "state_ready" to "Готово!",
         "btn_cancel" to "Скасувати",
-        "scroll_to_top" to "Догори"
+        "scroll_to_top" to "Догори",
+        "setting_updates" to "Оновлення",
+        "check_updates" to "Перевірити оновлення",
+        "checking_updates" to "Перевірка оновлень...",
+        "current_version" to "Поточна версія",
+        "latest_version_installed" to "У вас встановлена остання версія",
+        "new_version_available" to "Доступне оновлення",
+        "update_now" to "Оновити зараз",
+        "update_later" to "Пізніше",
+        "downloading_update" to "Завантаження оновлення...",
+        "install_update" to "Встановити",
+        "update_downloaded" to "Оновлення завантажено",
+        "update_error" to "Помилка оновлення",
+        "changelog_title" to "Що нового:",
+        "no_changelog" to "Опис оновлення відсутній",
+        "permission_unknown_sources" to "Дозвольте встановлення додатків з цього джерела в налаштуваннях",
+        "open_settings" to "Налаштування",
+        "update_size" to "Розмір",
+        "repo_label" to "Репозиторій: OFFpolice/Radio-Apps",
+        "no_apk_found" to "У цьому релізі не знайдено файл APK"
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {

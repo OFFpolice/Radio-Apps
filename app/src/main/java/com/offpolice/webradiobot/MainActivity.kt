@@ -37,6 +37,7 @@ import com.offpolice.webradiobot.data.ApiStation
 import com.offpolice.webradiobot.data.FavoriteStation
 import com.offpolice.webradiobot.ui.*
 import com.offpolice.webradiobot.ui.theme.*
+import com.offpolice.webradiobot.updater.UpdateState
 
 class MainActivity : ComponentActivity() {
 
@@ -264,6 +265,29 @@ fun MainAppContent(viewModel: RadioViewModel) {
                 },
                 onBack = {
                     viewModel.showLanguageScreen(false)
+                }
+            )
+        }
+
+        val isUpdateDialogVisible by viewModel.isUpdateDialogVisible.collectAsStateWithLifecycle()
+        val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+
+        if (isUpdateDialogVisible) {
+            AppUpdateDialog(
+                updateState = updateState,
+                onDismiss = { viewModel.dismissUpdateDialog() },
+                onStartDownload = {
+                    val state = updateState
+                    if (state is UpdateState.UpdateAvailable && state.apkAsset != null) {
+                        viewModel.startUpdateDownload(state.release, state.apkAsset)
+                    }
+                },
+                onCancelDownload = { viewModel.cancelUpdateDownload() },
+                onInstall = {
+                    val state = updateState
+                    if (state is UpdateState.ReadyToInstall) {
+                        viewModel.installUpdateApk(state.apkFile)
+                    }
                 }
             )
         }
