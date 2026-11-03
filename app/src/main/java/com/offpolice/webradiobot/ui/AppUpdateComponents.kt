@@ -573,98 +573,57 @@ fun AppUpdateDialog(
 
 @Composable
 fun SettingsUpdateSection(
-    currentVersion: String,
     updateState: UpdateState,
     onCheckForUpdates: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentVersion: String = ""
 ) {
     val isChecking = updateState is UpdateState.Checking
 
-    Column(
+    Button(
+        onClick = onCheckForUpdates,
+        enabled = !isChecking,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = CardBg,
+            contentColor = TextPrimary,
+            disabledContainerColor = CardBg,
+            disabledContentColor = TextMuted
+        ),
+        shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(CardBg)
-            .padding(16.dp)
+            .height(52.dp)
+            .border(1.dp, TextPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .testTag("check_updates_button")
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(ActiveCardBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SystemUpdate,
-                    contentDescription = null,
-                    tint = PrimaryPink,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringLoc("setting_updates"),
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${stringLoc("current_version")}: v$currentVersion",
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
-            }
-
-            Button(
-                onClick = onCheckForUpdates,
-                enabled = !isChecking,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryPink,
-                    contentColor = Color.White,
-                    disabledContainerColor = CardBg,
-                    disabledContentColor = TextMuted
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .height(36.dp)
-                    .testTag("check_updates_button")
-            ) {
-                if (isChecking) {
-                    CircularProgressIndicator(
-                        color = PrimaryPink,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(16.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringLoc("check_updates"),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
+        if (isChecking) {
+            CircularProgressIndicator(
+                color = PrimaryPink,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringLoc("checking_updates"),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextSecondary
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = PrimaryPink,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringLoc("check_updates"),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = stringLoc("repo_label"),
-            color = TextMuted,
-            fontSize = 11.sp
-        )
     }
 }
+

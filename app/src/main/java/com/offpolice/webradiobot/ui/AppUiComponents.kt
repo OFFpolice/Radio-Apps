@@ -1640,11 +1640,10 @@ fun SettingsTab(
             )
         }
 
-        // GitHub Updates section
+        // GitHub Updates button
         item(key = "settings_updates", contentType = "settings_item") {
             val updateState by viewModel.updateState.collectAsStateWithLifecycle()
             SettingsUpdateSection(
-                currentVersion = viewModel.updateManager.currentVersionName,
                 updateState = updateState,
                 onCheckForUpdates = { viewModel.checkForUpdates(isManual = true) }
             )
