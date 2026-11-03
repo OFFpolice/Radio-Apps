@@ -116,7 +116,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
 
     private var offset = 0
-    private val LIMIT = 100
+    private val LIMIT = 25
     private var searchJob: Job? = null
     private var isFetchingPage = false
     private val loadedStationUrls = HashSet<String>()
@@ -246,7 +246,7 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
 
                 // Cache top stations for fast offline startup
                 if (reset && query.isBlank() && _stations.value.isNotEmpty()) {
-                    repository.saveCachedStations(_stations.value.take(50))
+                    repository.saveCachedStations(_stations.value.take(25))
                 }
             } catch (e: CancellationException) {
                 // Ignore search cancellation

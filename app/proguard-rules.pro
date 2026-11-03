@@ -3,7 +3,6 @@
 
 # App Models & JSON serialization
 -keep class com.offpolice.webradiobot.data.** { *; }
--keep class com.offpolice.webradiobot.updater.** { *; }
 -keep class * { @com.squareup.moshi.JsonClass *; }
 -keep class * { @com.squareup.moshi.Json *; }
 -keep class *JsonAdapter { *; }

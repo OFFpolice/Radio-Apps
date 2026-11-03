@@ -610,11 +610,12 @@ fun StationCard(
             val hasValidFavicon = remember(faviconUrl) { isValidFaviconUrl(faviconUrl) }
             if (hasValidFavicon) {
                 val context = LocalContext.current
-                val imageRequest = remember(faviconUrl) {
+                val imageRequest = remember(faviconUrl, context) {
                     ImageRequest.Builder(context)
                         .data(faviconUrl)
-                        .size(96, 96)
+                        .size(120)
                         .precision(Precision.INEXACT)
+                        .allowHardware(true)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .crossfade(false)
@@ -622,14 +623,14 @@ fun StationCard(
                 }
                 AsyncImage(
                     model = imageRequest,
-                    contentDescription = "Station Favicon Cover",
+                    contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.Radio,
-                    contentDescription = "Standard Fallback Radio Cover Icon",
+                    contentDescription = null,
                     tint = SecondaryPink,
                     modifier = Modifier.size(28.dp)
                 )
@@ -726,6 +727,72 @@ fun StationCard(
         isFavorite = isFavorite,
         onSelect = onSelect,
         onToggleFavorite = onToggleFavorite,
+        modifier = modifier,
+        isPlaying = isPlaying
+    )
+}
+
+@Composable
+fun StationCard(
+    station: ApiStation,
+    isActive: Boolean,
+    isFavorite: Boolean,
+    isPlaying: Boolean,
+    onSelect: (ApiStation) -> Unit,
+    onToggleFavorite: (ApiStation) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val (tag1, tag2, tag3) = station.topTags
+    val handleSelect = remember(station.url_resolved, onSelect) {
+        { onSelect(station) }
+    }
+    val handleToggleFav = remember(station.url_resolved, onToggleFavorite) {
+        { onToggleFavorite(station) }
+    }
+    StationCard(
+        name = station.name,
+        faviconUrl = station.favicon,
+        tag1 = tag1,
+        tag2 = tag2,
+        tag3 = tag3,
+        urlResolved = station.url_resolved,
+        isActive = isActive,
+        isFavorite = isFavorite,
+        onSelect = handleSelect,
+        onToggleFavorite = handleToggleFav,
+        modifier = modifier,
+        isPlaying = isPlaying
+    )
+}
+
+@Composable
+fun StationCard(
+    station: FavoriteStation,
+    isActive: Boolean,
+    isFavorite: Boolean,
+    isPlaying: Boolean,
+    onSelect: (FavoriteStation) -> Unit,
+    onToggleFavorite: (FavoriteStation) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val (tag1, tag2, tag3) = station.topTags
+    val handleSelect = remember(station.urlResolved, onSelect) {
+        { onSelect(station) }
+    }
+    val handleToggleFav = remember(station.urlResolved, onToggleFavorite) {
+        { onToggleFavorite(station) }
+    }
+    StationCard(
+        name = station.name,
+        faviconUrl = station.favicon,
+        tag1 = tag1,
+        tag2 = tag2,
+        tag3 = tag3,
+        urlResolved = station.urlResolved,
+        isActive = isActive,
+        isFavorite = isFavorite,
+        onSelect = handleSelect,
+        onToggleFavorite = handleToggleFav,
         modifier = modifier,
         isPlaying = isPlaying
     )
@@ -1086,33 +1153,19 @@ fun RadioTab(
                 items(
                     items = stations,
                     key = { it.stationuuid?.ifBlank { null } ?: it.url_resolved },
-                    contentType = { "station_item" }
+                    contentType = { "station" }
                 ) { station ->
                     val isActive = activeUrl == station.url_resolved
                     val isFav = favoriteUrls.contains(station.url_resolved)
                     val isStationPlaying = isActive && (playbackState == PlaybackState.PLAYING)
 
-                    val onSelectLambda = remember(station.url_resolved) {
-                        { onStationSelect(station) }
-                    }
-                    val onToggleFavLambda = remember(station.url_resolved) {
-                        { onToggleFavorite(station) }
-                    }
-
-                    val (tag1, tag2, tag3) = station.topTags
-
                     StationCard(
-                        name = station.name,
-                        faviconUrl = station.favicon,
-                        tag1 = tag1,
-                        tag2 = tag2,
-                        tag3 = tag3,
-                        urlResolved = station.url_resolved,
+                        station = station,
                         isActive = isActive,
                         isFavorite = isFav,
-                        onSelect = onSelectLambda,
-                        onToggleFavorite = onToggleFavLambda,
-                        isPlaying = isStationPlaying
+                        isPlaying = isStationPlaying,
+                        onSelect = onStationSelect,
+                        onToggleFavorite = onToggleFavorite
                     )
                 }
 
@@ -1224,32 +1277,18 @@ fun FavoritesTab(
                 items(
                     items = favorites,
                     key = { it.urlResolved },
-                    contentType = { "station_item" }
+                    contentType = { "station" }
                 ) { station ->
                     val isActive = activeUrl == station.urlResolved
                     val isStationPlaying = isActive && (playbackState == PlaybackState.PLAYING)
 
-                    val onSelectLambda = remember(station.urlResolved) {
-                        { onStationSelect(station) }
-                    }
-                    val onToggleFavLambda = remember(station.urlResolved) {
-                        { onToggleFavorite(station) }
-                    }
-
-                    val (tag1, tag2, tag3) = station.topTags
-
                     StationCard(
-                        name = station.name,
-                        faviconUrl = station.favicon,
-                        tag1 = tag1,
-                        tag2 = tag2,
-                        tag3 = tag3,
-                        urlResolved = station.urlResolved,
+                        station = station,
                         isActive = isActive,
                         isFavorite = true,
-                        onSelect = onSelectLambda,
-                        onToggleFavorite = onToggleFavLambda,
-                        isPlaying = isStationPlaying
+                        isPlaying = isStationPlaying,
+                        onSelect = onStationSelect,
+                        onToggleFavorite = onToggleFavorite
                     )
                 }
             }
