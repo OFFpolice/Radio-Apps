@@ -67,6 +67,11 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
+composeCompiler {
+  reportsDestination = layout.buildDirectory.dir("compose_compiler")
+  metricsDestination = layout.buildDirectory.dir("compose_compiler")
+}
+
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
 // to match the convention used in Web projects.
 secrets {

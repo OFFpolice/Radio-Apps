@@ -116,16 +116,6 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val settingsListState = rememberLazyListState()
 
     val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val stations by viewModel.stations.collectAsStateWithLifecycle()
-    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
-    val favoriteUrls by viewModel.favoriteUrls.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
-
-    // Only collect what MainAppContent and tabs need for active item highlighting
-    val currentUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
-    val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
     // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
@@ -134,28 +124,6 @@ fun MainAppContent(viewModel: RadioViewModel) {
             focusManager.clearFocus()
             viewModel.selectTab(AppTab.RADIO)
         }
-    } else if (searchQuery.isNotEmpty()) {
-        BackHandler {
-            focusManager.clearFocus()
-            viewModel.clearSearch()
-        }
-    }
-
-    // Stable event listeners remembered across MainActivity recompositions
-    val onStationSelect: (ApiStation) -> Unit = remember(viewModel) {
-        { station -> viewModel.selectStation(station.url_resolved, station.name, station.favicon) }
-    }
-    val onToggleFavorite: (ApiStation) -> Unit = remember(viewModel) {
-        { station -> viewModel.toggleFavorite(station.url_resolved, station.name, station.favicon, station.tags) }
-    }
-    val onLoadMore: () -> Unit = remember(viewModel) {
-        { viewModel.fetchStations(reset = false) }
-    }
-    val onFavSelect: (FavoriteStation) -> Unit = remember(viewModel) {
-        { favStation -> viewModel.selectStation(favStation.urlResolved, favStation.name, favStation.favicon) }
-    }
-    val onFavToggle: (FavoriteStation) -> Unit = remember(viewModel) {
-        { favStation -> viewModel.toggleFavorite(favStation.urlResolved, favStation.name, favStation.favicon, favStation.tags) }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -163,10 +131,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
             topBar = {
                 AppHeader(
                     activeTab = activeTab,
-                    searchQuery = searchQuery,
-                    onSearchChange = { viewModel.updateSearchQuery(it) },
-                    onSearchSubmit = { viewModel.submitSearch(it) },
-                    isSearchVisible = activeTab == AppTab.RADIO
+                    viewModel = viewModel
                 )
             },
             bottomBar = {
@@ -213,27 +178,14 @@ fun MainAppContent(viewModel: RadioViewModel) {
                 when (activeTab) {
                     AppTab.RADIO -> {
                         RadioTab(
-                            stations = stations,
-                            favoriteUrls = favoriteUrls,
-                            activeUrl = currentUrl,
-                            playbackState = playbackState,
-                            isLoading = isLoading,
-                            hasMore = hasMore,
-                            listState = radioListState,
-                            searchQuery = searchQuery,
-                            onStationSelect = onStationSelect,
-                            onToggleFavorite = onToggleFavorite,
-                            onLoadMore = onLoadMore
+                            viewModel = viewModel,
+                            listState = radioListState
                         )
                     }
                     AppTab.FAVORITES -> {
                         FavoritesTab(
-                            favorites = favorites,
-                            activeUrl = currentUrl,
-                            playbackState = playbackState,
-                            listState = favoritesListState,
-                            onStationSelect = onFavSelect,
-                            onToggleFavorite = onFavToggle
+                            viewModel = viewModel,
+                            listState = favoritesListState
                         )
                     }
                     AppTab.SETTINGS -> {

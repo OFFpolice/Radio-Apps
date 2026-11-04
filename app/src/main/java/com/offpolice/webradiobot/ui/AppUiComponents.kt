@@ -367,6 +367,23 @@ fun ScrollToTopButton(
 @Composable
 fun AppHeader(
     activeTab: AppTab,
+    viewModel: RadioViewModel,
+    modifier: Modifier = Modifier
+) {
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    AppHeader(
+        activeTab = activeTab,
+        searchQuery = searchQuery,
+        onSearchChange = { viewModel.updateSearchQuery(it) },
+        onSearchSubmit = { viewModel.submitSearch(it) },
+        isSearchVisible = activeTab == AppTab.RADIO,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun AppHeader(
+    activeTab: AppTab,
     searchQuery: String,
     onSearchChange: (String) -> Unit,
     onSearchSubmit: (String) -> Unit,
@@ -553,7 +570,7 @@ fun SectionHeader(
     }
 }
 
-// Pre-allocated static shapes and brushes to eliminate runtime allocations during scrolling
+// Pre-allocated static shapes, brushes, and modifiers to eliminate runtime allocations during scrolling
 private val StationCardShape = RoundedCornerShape(16.dp)
 private val StationCoverShape = RoundedCornerShape(12.dp)
 private val TagChipShape = RoundedCornerShape(12.dp)
@@ -566,6 +583,21 @@ private val InactiveBorderStroke = BorderStroke(1.dp, InactiveBorderColor)
 private val ActiveBorderStroke = BorderStroke(1.dp, ActiveBorderBrush)
 private val ActiveTagBg = Color(0xFF3A2A33)
 private val ActiveTagTextColor = Color(0xFFE0B0C0)
+
+// Pre-allocated static modifiers (eliminates modifier chain recreation per recomposition)
+private val StationCoverBoxModifier = Modifier
+    .size(52.dp)
+    .clip(StationCoverShape)
+private val StationFallbackIconModifier = Modifier.size(28.dp)
+private val StationFavButtonBaseModifier = Modifier
+    .size(36.dp)
+    .clip(CircleShape)
+private val StationFavIconModifier = Modifier.size(22.dp)
+private val RowSpacerWidth12 = Modifier.width(12.dp)
+private val RowSpacerWidth8 = Modifier.width(8.dp)
+private val RowSpacerWidth6 = Modifier.width(6.dp)
+private val ColSpacerHeight4 = Modifier.height(4.dp)
+private val TagChipPaddingModifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
 
 // Station list item layout with high-fidelity visuals and 60fps scrolling optimization
 @Composable
@@ -601,10 +633,7 @@ fun StationCard(
     ) {
         // Cover Art Container
         Box(
-            modifier = Modifier
-                .size(52.dp)
-                .background(SearchBg, StationCoverShape)
-                .clip(StationCoverShape),
+            modifier = StationCoverBoxModifier.background(SearchBg),
             contentAlignment = Alignment.Center
         ) {
             val hasValidFavicon = remember(faviconUrl) { isValidFaviconUrl(faviconUrl) }
@@ -632,12 +661,12 @@ fun StationCard(
                     imageVector = Icons.Default.Radio,
                     contentDescription = null,
                     tint = SecondaryPink,
-                    modifier = Modifier.size(28.dp)
+                    modifier = StationFallbackIconModifier
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = RowSpacerWidth12)
 
         // Station Details Info
         Column(
@@ -654,12 +683,12 @@ fun StationCard(
                     modifier = Modifier.weight(1f, fill = false)
                 )
                 if (isActive && isPlaying) {
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = RowSpacerWidth6)
                     CompactEqualizerAnimation()
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = ColSpacerHeight4)
 
             // Badges / Tags row (Fast direct evaluation without collection allocation)
             Row(
@@ -680,13 +709,11 @@ fun StationCard(
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = RowSpacerWidth8)
 
         // Favorite Toggle button
         Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
+            modifier = StationFavButtonBaseModifier
                 .clickable(onClick = onToggleFavorite)
                 .testTag("fav_btn_${urlResolved.hashCode()}"),
             contentAlignment = Alignment.Center
@@ -695,7 +722,7 @@ fun StationCard(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
                 tint = if (isFavorite) PrimaryPink else TextSecondary,
-                modifier = Modifier.size(22.dp)
+                modifier = StationFavIconModifier
             )
         }
     }
@@ -812,7 +839,7 @@ fun TagChip(text: String, isActive: Boolean) {
                 color = if (isActive) ActiveTagBg else SearchBg,
                 shape = TagChipShape
             )
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .then(TagChipPaddingModifier)
     )
 }
 
@@ -1204,6 +1231,55 @@ fun RadioTab(
     }
 }
 
+// ViewModel-scoped RadioTab: collects its own state internally to prevent top-level recomposition
+@Composable
+fun RadioTab(
+    viewModel: RadioViewModel,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
+) {
+    val stations by viewModel.stations.collectAsStateWithLifecycle()
+    val favoriteUrls by viewModel.favoriteUrls.collectAsStateWithLifecycle()
+    val activeUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+
+    val onStationSelect: (ApiStation) -> Unit = remember(viewModel) {
+        { station -> viewModel.selectStation(station.url_resolved, station.name, station.favicon) }
+    }
+    val onToggleFavorite: (ApiStation) -> Unit = remember(viewModel) {
+        { station -> viewModel.toggleFavorite(station.url_resolved, station.name, station.favicon, station.tags) }
+    }
+    val onLoadMore: () -> Unit = remember(viewModel) {
+        { viewModel.fetchStations(reset = false) }
+    }
+
+    val focusManager = LocalFocusManager.current
+    if (searchQuery.isNotEmpty()) {
+        androidx.activity.compose.BackHandler {
+            focusManager.clearFocus()
+            viewModel.clearSearch()
+        }
+    }
+
+    RadioTab(
+        stations = stations,
+        favoriteUrls = favoriteUrls,
+        activeUrl = activeUrl,
+        playbackState = playbackState,
+        isLoading = isLoading,
+        hasMore = hasMore,
+        onStationSelect = onStationSelect,
+        onToggleFavorite = onToggleFavorite,
+        onLoadMore = onLoadMore,
+        modifier = modifier,
+        listState = listState,
+        searchQuery = searchQuery
+    )
+}
+
 // Backwards-compatible overload taking favorites List directly
 @Composable
 fun RadioTab(
@@ -1236,6 +1312,35 @@ fun RadioTab(
         modifier = modifier,
         listState = listState,
         searchQuery = searchQuery
+    )
+}
+
+// ViewModel-scoped FavoritesTab: collects its own state internally
+@Composable
+fun FavoritesTab(
+    viewModel: RadioViewModel,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
+) {
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val activeUrl by viewModel.playerManager.currentUrl.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playerManager.playbackState.collectAsStateWithLifecycle()
+
+    val onStationSelect: (FavoriteStation) -> Unit = remember(viewModel) {
+        { station -> viewModel.selectStation(station.urlResolved, station.name, station.favicon) }
+    }
+    val onToggleFavorite: (FavoriteStation) -> Unit = remember(viewModel) {
+        { station -> viewModel.toggleFavorite(station.urlResolved, station.name, station.favicon, station.tags) }
+    }
+
+    FavoritesTab(
+        favorites = favorites,
+        activeUrl = activeUrl,
+        playbackState = playbackState,
+        onStationSelect = onStationSelect,
+        onToggleFavorite = onToggleFavorite,
+        modifier = modifier,
+        listState = listState
     )
 }
 

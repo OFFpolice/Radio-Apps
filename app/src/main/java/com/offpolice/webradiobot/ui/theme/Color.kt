@@ -1,10 +1,12 @@
 package com.offpolice.webradiobot.ui.theme
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // Premium Theme Color Container
+@Immutable
 class AppThemeColors(
     val bg: Color,
     val cardBg: Color,
