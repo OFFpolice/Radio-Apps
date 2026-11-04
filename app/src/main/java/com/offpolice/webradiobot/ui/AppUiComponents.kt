@@ -585,6 +585,11 @@ private val ActiveTagBg = Color(0xFF3A2A33)
 private val ActiveTagTextColor = Color(0xFFE0B0C0)
 
 // Pre-allocated static modifiers (eliminates modifier chain recreation per recomposition)
+private val StationCardOuterModifier = Modifier
+    .fillMaxWidth()
+    .padding(vertical = 4.dp)
+private val StationCardInnerPaddingModifier = Modifier
+    .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
 private val StationCoverBoxModifier = Modifier
     .size(52.dp)
     .clip(StationCoverShape)
@@ -599,7 +604,7 @@ private val RowSpacerWidth6 = Modifier.width(6.dp)
 private val ColSpacerHeight4 = Modifier.height(4.dp)
 private val TagChipPaddingModifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
 
-// Station list item layout with high-fidelity visuals and 60fps scrolling optimization
+// Station list item layout with high-fidelity visuals and 60/120fps scrolling optimization
 @Composable
 fun StationCard(
     name: String,
@@ -619,15 +624,14 @@ fun StationCard(
 
     Row(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .then(StationCardOuterModifier)
             .background(cardBackground, StationCardShape)
             .then(
                 if (isActive) Modifier.border(ActiveBorderStroke, StationCardShape) else Modifier
             )
             .clip(StationCardShape)
             .clickable(onClick = onSelect)
-            .padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 12.dp)
+            .then(StationCardInnerPaddingModifier)
             .testTag("station_card_${urlResolved.hashCode()}"),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -639,8 +643,8 @@ fun StationCard(
             val hasValidFavicon = remember(faviconUrl) { isValidFaviconUrl(faviconUrl) }
             if (hasValidFavicon) {
                 val context = LocalContext.current
-                val imageRequest = remember(faviconUrl, context) {
-                    ImageRequest.Builder(context)
+                val imageRequest = remember(faviconUrl) {
+                    ImageRequest.Builder(context.applicationContext)
                         .data(faviconUrl)
                         .size(120)
                         .precision(Precision.INEXACT)
@@ -833,7 +837,6 @@ fun TagChip(text: String, isActive: Boolean) {
         fontSize = 11.sp,
         fontWeight = FontWeight.Medium,
         maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .background(
                 color = if (isActive) ActiveTagBg else SearchBg,
@@ -1165,12 +1168,12 @@ fun RadioTab(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            item(contentType = "header") {
+            item(key = "header_all_stations", contentType = "header") {
                 SectionHeader(title = stringLoc("all_stations"), icon = Icons.Default.Radio)
             }
 
             if (stations.isEmpty() && !isLoading) {
-                item(contentType = "placeholder") {
+                item(key = "placeholder_empty", contentType = "placeholder") {
                     EmptyPlaceholder(
                         message = stringLoc("nothing_found"),
                         icon = Icons.Default.SearchOff
@@ -1197,7 +1200,7 @@ fun RadioTab(
                 }
 
                 if (isLoading) {
-                    item(contentType = "loading") {
+                    item(key = "loading_more", contentType = "loading") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
