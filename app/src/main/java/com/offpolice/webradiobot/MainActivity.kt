@@ -14,8 +14,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -111,6 +115,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppContent(viewModel: RadioViewModel) {
     val isLanguageScreenOpen by viewModel.isLanguageScreenOpen.collectAsStateWithLifecycle()
+    val isFullScreenPlayerOpen by viewModel.isFullScreenPlayerOpen.collectAsStateWithLifecycle()
     val radioListState = rememberLazyListState()
     val favoritesListState = rememberLazyListState()
     val settingsListState = rememberLazyListState()
@@ -119,7 +124,7 @@ fun MainAppContent(viewModel: RadioViewModel) {
     val focusManager = LocalFocusManager.current
 
     // Intercept back actions. If we are on secondary tabs, back press directs us home to Radio Tab.
-    if (activeTab != AppTab.RADIO) {
+    if (activeTab != AppTab.RADIO && !isFullScreenPlayerOpen) {
         BackHandler {
             focusManager.clearFocus()
             viewModel.selectTab(AppTab.RADIO)
@@ -146,7 +151,11 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     )
                     PlayerBar(
                         playerManager = viewModel.playerManager,
-                        onPlayToggle = { viewModel.togglePlay() }
+                        onPlayToggle = { viewModel.togglePlay() },
+                        onOpenFullScreen = {
+                            focusManager.clearFocus()
+                            viewModel.showFullScreenPlayer(true)
+                        }
                     )
                     HorizontalDivider(
                         thickness = 1.dp,
@@ -196,6 +205,23 @@ fun MainAppContent(viewModel: RadioViewModel) {
                     }
                 }
             }
+        }
+
+        AnimatedVisibility(
+            visible = isFullScreenPlayerOpen,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(durationMillis = 280)
+            ) + fadeIn(animationSpec = tween(durationMillis = 220)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(durationMillis = 240)
+            ) + fadeOut(animationSpec = tween(durationMillis = 200))
+        ) {
+            FullScreenPlayer(
+                viewModel = viewModel,
+                onDismiss = { viewModel.showFullScreenPlayer(false) }
+            )
         }
 
         if (isLanguageScreenOpen) {

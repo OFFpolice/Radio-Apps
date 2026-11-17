@@ -851,6 +851,7 @@ fun TagChip(text: String, isActive: Boolean) {
 fun PlayerBar(
     playerManager: RadioPlayerManager,
     onPlayToggle: () -> Unit,
+    onOpenFullScreen: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentName by playerManager.currentName.collectAsStateWithLifecycle()
@@ -866,6 +867,7 @@ fun PlayerBar(
         currentFavicon = currentFavicon,
         playbackState = playbackState,
         onPlayToggle = onPlayToggle,
+        onOpenFullScreen = onOpenFullScreen,
         modifier = modifier
     )
 }
@@ -879,12 +881,14 @@ fun PlayerBar(
     currentFavicon: String? = null,
     playbackState: PlaybackState,
     onPlayToggle: () -> Unit,
+    onOpenFullScreen: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(CardBg)
+            .clickable(onClick = onOpenFullScreen)
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .testTag("player_bar"),
         verticalAlignment = Alignment.CenterVertically,
@@ -1002,6 +1006,13 @@ fun PlayerBar(
                 color = TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
+            )
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = "Expand Player",
+                tint = TextMuted,
+                modifier = Modifier.size(18.dp)
             )
         }
     }

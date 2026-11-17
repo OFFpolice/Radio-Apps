@@ -85,7 +85,11 @@ object Loc {
         "open_settings" to "Settings",
         "update_size" to "Size",
         "repo_label" to "Repository: OFFpolice/Radio-Apps",
-        "no_apk_found" to "No APK file found in this release"
+        "no_apk_found" to "No APK file found in this release",
+        "now_playing" to "Now Playing",
+        "live_radio" to "LIVE",
+        "tap_to_play" to "Tap play to listen",
+        "no_track_metadata" to "Live Internet Radio"
     )
 
     private val ru = mapOf(
@@ -147,7 +151,11 @@ object Loc {
         "open_settings" to "Настройки",
         "update_size" to "Размер",
         "repo_label" to "Репозиторий: OFFpolice/Radio-Apps",
-        "no_apk_found" to "В этом релизе не найден файл APK"
+        "no_apk_found" to "В этом релизе не найден файл APK",
+        "now_playing" to "Сейчас играет",
+        "live_radio" to "ЭФИР",
+        "tap_to_play" to "Нажмите Play для запуска",
+        "no_track_metadata" to "Прямой интернет-эфир"
     )
 
     private val uk = mapOf(
@@ -209,7 +217,11 @@ object Loc {
         "open_settings" to "Налаштування",
         "update_size" to "Розмір",
         "repo_label" to "Репозиторій: OFFpolice/Radio-Apps",
-        "no_apk_found" to "У цьому релізі не знайдено файл APK"
+        "no_apk_found" to "У цьому релізі не знайдено файл APK",
+        "now_playing" to "Зараз грає",
+        "live_radio" to "ЕФІР",
+        "tap_to_play" to "Натисніть Play для запуску",
+        "no_track_metadata" to "Прямий інтернет-ефір"
     )
 
     fun get(key: String, setting: AppLanguageSetting): String {

@@ -86,6 +86,13 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         _isLanguageScreenOpen.value = show
     }
 
+    private val _isFullScreenPlayerOpen = MutableStateFlow(false)
+    val isFullScreenPlayerOpen: StateFlow<Boolean> = _isFullScreenPlayerOpen.asStateFlow()
+
+    fun showFullScreenPlayer(show: Boolean) {
+        _isFullScreenPlayerOpen.value = show
+    }
+
     private val _activeTab = MutableStateFlow(AppTab.RADIO)
     val activeTab: StateFlow<AppTab> = _activeTab.asStateFlow()
 
@@ -340,28 +347,65 @@ class RadioViewModel(private val application: Application) : AndroidViewModel(ap
         }
     }
 
+    fun toggleCurrentStationFavorite() {
+        val url = playerManager.currentUrl.value ?: return
+        val name = playerManager.currentName.value ?: "Radio"
+        val favicon = playerManager.currentFavicon.value
+        val tags = _stations.value.firstOrNull { it.url_resolved == url }?.tags
+            ?: favorites.value.firstOrNull { it.urlResolved == url }?.tags
+        toggleFavorite(url, name, favicon, tags)
+    }
+
     fun togglePlay() {
         playerManager.togglePlay()
     }
 
     fun playNextStation() {
-        val list = _stations.value
-        if (list.isEmpty()) return
         val currentUrl = playerManager.currentUrl.value
-        val currentIndex = list.indexOfFirst { it.url_resolved == currentUrl }
-        val nextIndex = if (currentIndex in 0 until list.size - 1) currentIndex + 1 else 0
-        val station = list[nextIndex]
-        selectStation(station.url_resolved, station.name, station.favicon)
+        val favList = favorites.value
+        if (_activeTab.value == AppTab.FAVORITES && favList.isNotEmpty()) {
+            val currentIndex = favList.indexOfFirst { it.urlResolved == currentUrl }
+            val nextIndex = if (currentIndex in 0 until favList.size - 1) currentIndex + 1 else 0
+            val fav = favList[nextIndex]
+            selectStation(fav.urlResolved, fav.name, fav.favicon)
+            return
+        }
+        val list = _stations.value
+        if (list.isNotEmpty()) {
+            val currentIndex = list.indexOfFirst { it.url_resolved == currentUrl }
+            val nextIndex = if (currentIndex in 0 until list.size - 1) currentIndex + 1 else 0
+            val station = list[nextIndex]
+            selectStation(station.url_resolved, station.name, station.favicon)
+        } else if (favList.isNotEmpty()) {
+            val currentIndex = favList.indexOfFirst { it.urlResolved == currentUrl }
+            val nextIndex = if (currentIndex in 0 until favList.size - 1) currentIndex + 1 else 0
+            val fav = favList[nextIndex]
+            selectStation(fav.urlResolved, fav.name, fav.favicon)
+        }
     }
 
     fun playPreviousStation() {
-        val list = _stations.value
-        if (list.isEmpty()) return
         val currentUrl = playerManager.currentUrl.value
-        val currentIndex = list.indexOfFirst { it.url_resolved == currentUrl }
-        val prevIndex = if (currentIndex > 0) currentIndex - 1 else list.size - 1
-        val station = list[prevIndex]
-        selectStation(station.url_resolved, station.name, station.favicon)
+        val favList = favorites.value
+        if (_activeTab.value == AppTab.FAVORITES && favList.isNotEmpty()) {
+            val currentIndex = favList.indexOfFirst { it.urlResolved == currentUrl }
+            val prevIndex = if (currentIndex > 0) currentIndex - 1 else favList.size - 1
+            val fav = favList[prevIndex]
+            selectStation(fav.urlResolved, fav.name, fav.favicon)
+            return
+        }
+        val list = _stations.value
+        if (list.isNotEmpty()) {
+            val currentIndex = list.indexOfFirst { it.url_resolved == currentUrl }
+            val prevIndex = if (currentIndex > 0) currentIndex - 1 else list.size - 1
+            val station = list[prevIndex]
+            selectStation(station.url_resolved, station.name, station.favicon)
+        } else if (favList.isNotEmpty()) {
+            val currentIndex = favList.indexOfFirst { it.urlResolved == currentUrl }
+            val prevIndex = if (currentIndex > 0) currentIndex - 1 else favList.size - 1
+            val fav = favList[prevIndex]
+            selectStation(fav.urlResolved, fav.name, fav.favicon)
+        }
     }
 
     override fun onCleared() {
